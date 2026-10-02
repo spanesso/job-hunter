@@ -1,0 +1,11 @@
+# Workspace de datos personales generado al usar el skill — nunca debe
+# vivir dentro del repo del skill.
+job-hunter-workspace/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store

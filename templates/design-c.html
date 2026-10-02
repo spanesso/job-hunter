@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<title>{{title}}</title>
+<style>
+  /* Diseño C — Portfolio-Ready: sidebar implementada con CSS flex (no
+     tablas, no <aside> posicionado por floats), para que el texto plano
+     siga leyéndose en orden lineal al copiarlo. SOLO para envío humano
+     directo (email, impresión, ferias). NUNCA para portales ATS: usa
+     Diseño A o B para eso. */
+  @page { size: A4; margin: 0; }
+  :root { --accent: #b45309; }
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: #222222;
+    margin: 0;
+  }
+  h1, h2, h3 { font-family: 'Montserrat', 'Poppins', Arial, sans-serif; }
+  .page { display: flex; min-height: 100vh; }
+  .sidebar {
+    flex: 0 0 34%;
+    background: #f4f1ec;
+    padding: 20mm 10mm 20mm 14mm;
+  }
+  .main {
+    flex: 1 1 66%;
+    padding: 20mm 14mm 20mm 10mm;
+  }
+  .sidebar h1 { font-size: 17pt; color: var(--accent); margin: 0 0 2pt 0; }
+  .sidebar h2 {
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    color: var(--accent);
+    margin: 14pt 0 5pt 0;
+  }
+  .main h2 {
+    font-size: 12pt;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 2pt;
+    margin: 14pt 0 6pt 0;
+  }
+  .main h3 { font-size: 11pt; margin: 9pt 0 2pt 0; }
+  ul { margin: 0 0 8pt 0; padding-left: 14pt; }
+  li { margin-bottom: 2pt; }
+  p { margin: 0 0 6pt 0; }
+  a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="sidebar">
+  {{sidebar}}
+  </div>
+  <div class="main">
+  {{main}}
+  </div>
+</div>
+</body>
+</html>
