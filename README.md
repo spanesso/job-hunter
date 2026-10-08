@@ -31,6 +31,15 @@ siempre tuya.
   call-to-action — nunca repiten el CV en prosa.
 - **Postulación asistida** vía Chrome MCP, con registro inmediato de
   cada envío en un Excel (tu base de datos de seguimiento).
+- **Respuestas fijas** en `perfil.md` (consentimientos, disponibilidad,
+  CV por idioma): se definen una vez y se aplican a todos los formularios.
+- **CV por idioma**: detecta el idioma de cada vacante y sube el PDF
+  correspondiente.
+- **Búsqueda por APIs públicas** de Greenhouse, Ashby, Lever y Recruitee
+  (ofertas vigentes, no enlaces caducados) con `scripts/escanear-ats.py`.
+- **Verificación y honestidad**: confirma cada campo y la pantalla de éxito,
+  descarta vacantes cuyos requisitos de elegibilidad no cumples y reporta
+  como supuesto cualquier dato que no esté respaldado.
 
 ## Qué NO hace
 
@@ -82,14 +91,17 @@ job-hunter/
 │   ├── ats-2026.md                 # Reglas de parseo ATS vigentes
 │   ├── prerequisitos-chrome.md     # Setup y troubleshooting del Chrome MCP
 │   ├── portales-soportados.md      # Notas de compatibilidad por portal
+│   ├── ats-formularios.md          # Técnicas de llenado por ATS y búsqueda por APIs
 │   ├── estructura-cv.md            # Estructura y reglas de contenido del CV
 │   └── cover-letter-guide.md       # Cómo escribir cover letters efectivas
 ├── templates/
+│   ├── perfil.md                   # Plantilla de perfil + respuestas fijas
 │   ├── design-a.html / design-b.html / design-c.html
 │   └── cover-letter.html
 ├── scripts/
 │   ├── generar-pdf.py              # Markdown → PDF con el template elegido
 │   ├── verificar-chrome.sh         # Checklist de conexión al Chrome MCP
+│   ├── escanear-ats.py             # Escanea listados públicos de ATS por keywords
 │   └── test-parseo.py              # Test automatizado de parseo ATS
 └── evals/
     └── evals.json                  # Casos de prueba para validar el comportamiento del skill

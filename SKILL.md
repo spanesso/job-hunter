@@ -1,5 +1,6 @@
 ---
 name: job-hunter
+version: 1.1.0
 description: >
   Head hunter personal para búsqueda de empleo en desarrollo de software.
   Diagnostica y reconstruye CVs optimizados para ATS con 3 diseños
@@ -53,7 +54,7 @@ job-hunter-workspace/
 │   ├── cv-es.md              # Fuente de verdad (español)
 │   ├── cv-en.md              # Fuente de verdad (inglés)
 │   ├── output/                # PDFs generados (cv-es-a.pdf, cv-en-b.pdf, ...)
-│   └── perfil.md              # Salario, preferencias, contacto
+│   └── perfil.md              # Contacto, preferencias, CV por idioma, respuestas fijas
 ├── busqueda/
 │   ├── config.md              # Portales, filtros, keywords
 │   ├── vacantes-nuevas.md
@@ -64,6 +65,12 @@ job-hunter-workspace/
 └── logs/
     └── sesion-YYYY-MM-DD.md
 ```
+
+`perfil.md` se crea desde `templates/perfil.md`. Incluye las **respuestas
+fijas** que se aplican a todos los formularios (consentimiento de
+WhatsApp/SMS, fecha de inicio, autorización de trabajo, rutas de CV por
+idioma). El skill las lee y **no las vuelve a preguntar**; si falta una, la
+pregunta una sola vez y la guarda ahí.
 
 Las Fases 2 y 3 **solo leen los `.md` de `cv/`**, nunca el CV original en
 Word/PDF del usuario, para minimizar tokens y evitar inconsistencias.
@@ -152,7 +159,14 @@ Define con el usuario (guarda en `busqueda/config.md`):
 - Filtros: modalidad, ubicación, rango salarial, experiencia.
 - Criterios de descarte automático: salario bajo el mínimo del usuario,
   match <50% en requisitos duros, red flags (requisitos contradictorios,
-  "ninja/rockstar", +15 requisitos duros).
+  "ninja/rockstar", +15 requisitos duros), **restricciones de elegibilidad
+  que el usuario no cumple** (nacionalidad o residencia exigida, "solo
+  US/UE/Canadá") y stacks que el usuario excluyó.
+- **Fuentes**: además de los portales, usa las APIs públicas de listados
+  de los ATS (Greenhouse, Ashby, Lever, Recruitee) con
+  `scripts/escanear-ats.py`; devuelven ofertas vigentes, a diferencia de
+  muchos enlaces del buscador web, que suelen estar caducados (404). Ver
+  `references/ats-formularios.md`.
 
 ### 2.2 Ejecución (modo head hunter)
 
@@ -173,6 +187,8 @@ Por cada vacante encontrada:
 - Chrome MCP pierde conexión → pausa, da instrucciones de reconexión.
 - Portal pide login → el usuario inicia sesión manualmente.
 - CAPTCHA → salta, marca "intervención manual". **No lo resuelvas.**
+  (hCaptcha en Lever, Cloudflare en Workable y CAPTCHA de imagen en Zoho
+  son bloqueos habituales; ver `references/ats-formularios.md`.)
 - Nunca crees cuentas en nombre del usuario.
 
 ## Fase 3 — Postulación
@@ -198,10 +214,26 @@ Por cada vacante aprobada:
    nunca repite el CV en prosa). Guarda el PDF en
    `postulaciones/cover-letters/[empresa]-[cargo].pdf` y súbelo —
    **nunca** dejes ese campo vacío si existe.
-4. Sube el PDF del CV (diseño A o B según el portal — nunca C).
-5. Modo supervisado: muestra resumen de campos llenados, espera
+4. Sube el PDF del CV (diseño A o B según el portal — nunca C). **Elige
+   el idioma por vacante**: detecta el idioma de la descripción y del
+   formulario y sube el PDF de ese idioma según `perfil.md`.
+5. Aplica las **respuestas fijas** de `perfil.md` (consentimientos,
+   disponibilidad, autorización de trabajo). Para un dato numérico que no
+   esté respaldado por el CV o `perfil.md`, usa el valor más conservador y
+   **repórtalo como supuesto** en el resumen de sesión.
+6. **Verifica antes de enviar**: confirma con captura o leyendo el DOM que
+   radios, desplegables, casillas y el archivo quedaron como se quería.
+7. Modo supervisado: muestra resumen de campos llenados, espera
    aprobación antes de enviar.
-6. Click en enviar.
+8. Click en enviar y **confirma con captura la pantalla de éxito** (el
+   texto de la página puede estar desactualizado justo tras enviar).
+
+### 3.2b Elegibilidad y honestidad
+
+Antes de llenar, lee las restricciones de la oferta. Si exige nacionalidad,
+residencia o autorización que el usuario no tiene, **no postules**: marca
+"descartada" con la razón. Nunca afirmes en un formulario algo que no sea
+cierto para pasar una validación.
 
 ### 3.3 Registro inmediato
 
@@ -239,5 +271,7 @@ Al cerrar: N enviadas / N fallidas / N pendientes, ruta a
 - `references/ats-2026.md` — reglas de parseo ATS, actualizable sin tocar este archivo.
 - `references/prerequisitos-chrome.md` — setup y troubleshooting de Chrome MCP.
 - `references/portales-soportados.md` — notas de compatibilidad por portal.
+- `references/ats-formularios.md` — técnicas de llenado por ATS, elegibilidad y búsqueda por APIs.
+- `templates/perfil.md` — plantilla de `perfil.md` con las respuestas fijas.
 - `references/estructura-cv.md` — estructura y reglas de contenido del CV.
 - `references/cover-letter-guide.md` — cómo escribir cover letters efectivas.

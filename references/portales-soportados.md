@@ -13,6 +13,9 @@ CAPTCHA, etc.) — es más valioso que una lista teórica.
 | Computrabajo | Sí para la mayoría de vacantes | Sí | A veces | Formularios suelen tener campos de "aspiración salarial" obligatorios — usar `perfil.md`. |
 | ATS de terceros (Recruitee, Greenhouse, Lever, Workday, SuccessFactors) | No, formulario público | Sí | Frecuente | Cada uno tiene su propio layout de campos; siempre hacer un reconocimiento de campos antes de llenar. SuccessFactors en particular usa pasos multi-página — confirmar cada paso antes de avanzar. |
 
+Detalle por ATS (técnicas de llenado, bloqueos conocidos como hCaptcha,
+Cloudflare o shadow DOM) en `references/ats-formularios.md`.
+
 ## Reglas generales que aplican a cualquier portal nuevo
 
 1. Antes de llenar, lee todos los campos del formulario una vez — no
@@ -23,3 +26,7 @@ CAPTCHA, etc.) — es más valioso que una lista teórica.
    registro y continúa con la siguiente vacante.
 4. Si el campo de salario es obligatorio y no tienes el valor del
    usuario, pregúntalo antes de inventar un número.
+5. Lee las restricciones de elegibilidad (nacionalidad, residencia, zona
+   horaria) antes de llenar; si no las cumples, descarta y registra.
+6. Si el formulario ya trae datos precargados (autofill del CV), revisa
+   que coincidan con `perfil.md` antes de enviar.
