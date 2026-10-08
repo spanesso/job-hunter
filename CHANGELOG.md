@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1
+- **Fase 3 — detección de reCAPTCHA "I'm not a robot"**: el subagente escanea
+  el formulario antes de enviar buscando el checkbox de reCAPTCHA v2. Si lo
+  encuentra, detiene el envío y escribe `estado: requiere_captcha_manual`. El
+  agente principal muestra una advertencia clara con la URL y espera a que el
+  usuario marque el checkbox manualmente. Después de la confirmación, el agente
+  hace click en enviar. Si el usuario omite la vacante, queda registrada como
+  `pendiente_captcha` en `registro.xlsx`.
+- **Sección 2.3**: diferencia explícita entre el checkbox reCAPTCHA v2 (campo
+  dentro del formulario, requiere intervención manual puntual) y los CAPTCHAs
+  de bloqueo como hCaptcha/Cloudflare (bloquean la navegación entera).
+
 ## 1.4.0
 - **Prerequisitos automáticos**: el skill verifica e instala `markdown`,
   `weasyprint` y `pypdf` con `pip install` al arrancar la Fase 1. Si Python 3

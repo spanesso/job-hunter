@@ -1,6 +1,6 @@
 ---
 name: job-hunter
-version: 1.4.0
+version: 1.4.1
 description: >
   Head hunter personal para búsqueda de empleo en desarrollo de software.
   Diagnostica y reconstruye CVs optimizados para ATS con 3 diseños
@@ -376,7 +376,12 @@ archivo de resultado:
 - Chrome MCP pierde conexión → el fork escribe `estado: error_conexion` y termina.
 - Portal pide login → escribe `estado: requiere_login` con la URL; el agente
   principal lo reporta al usuario.
-- CAPTCHA → escribe `estado: captcha_bloqueado`; el agente principal lo marca
+- **Checkbox "I'm not a robot" (reCAPTCHA v2)** → no es un bloqueo de
+  navegación, sino un campo que aparece dentro de los formularios de
+  postulación. El Chrome MCP **no puede interactuar con él** (corre en un
+  iframe sandboxed de Google). Ver §3.2 paso 8 para el manejo correcto.
+- CAPTCHAs de bloqueo (hCaptcha en Lever, Cloudflare en Workable, imagen en
+  Zoho) → escribe `estado: captcha_bloqueado`; el agente principal lo marca
   como "intervención manual".
 - Nunca crees cuentas en nombre del usuario.
 
@@ -416,7 +421,7 @@ El agente principal:
    - CV inglés:         cv/aprobados/cv-en-aprobado.pdf
 
    INSTRUCCIONES
-   1. Verifica elegibilidad (nacionalidad, residencia, visa). Si no cumple → 
+   1. Verifica elegibilidad (nacionalidad, residencia, visa). Si no cumple →
       escribe estado=descartada, razón, y termina.
    2. Navega a la URL con Chrome MCP.
    3. Llena todos los campos usando perfil.md y el CV en el idioma correcto.
@@ -426,14 +431,22 @@ El agente principal:
    6. Sube el PDF desde cv/aprobados/ (diseño A o B — nunca C).
    7. Verifica con captura que radios, desplegables, casillas y archivo
       quedaron correctos.
-   8. Modo supervisado: escribe resumen de campos llenados en
+   8. **Antes de intentar enviar**, escanea el formulario buscando cualquiera
+      de estos elementos:
+      - Checkbox con texto "I'm not a robot" / "No soy un robot"
+      - Widget de reCAPTCHA v2 (iframe de google.com/recaptcha)
+      - Cualquier elemento con clase `g-recaptcha` o `recaptcha-checkbox`
+      Si detectás alguno → escribe estado=requiere_captcha_manual en el
+      archivo resultado y DETENTE. No hagas click en enviar. El agente
+      principal avisará al usuario.
+   9. Modo supervisado: escribe resumen de campos llenados en
       postulaciones/preview-<empresa>-<cargo>.md y detente — espera
       confirmación del agente principal antes de hacer click en enviar.
-      Modo autónomo: envía directamente.
-   9. Confirma con captura la pantalla de éxito.
-   10. Escribe el resultado en postulaciones/resultado-<empresa>-<cargo>.md:
-       estado (enviada/fallida/pendiente), campos llenados, supuestos usados,
-       ruta de la captura de éxito.
+      Modo autónomo: envía directamente (solo si no había captcha en paso 8).
+   10. Confirma con captura la pantalla de éxito.
+   11. Escribe el resultado en postulaciones/resultado-<empresa>-<cargo>.md:
+       estado (enviada/fallida/pendiente/requiere_captcha_manual),
+       campos llenados, supuestos usados, ruta de la captura de éxito.
 
    MANEJO DE ERRORES
    - Formulario no carga → 1 reintento, luego estado=error, detente.
@@ -445,6 +458,26 @@ El agente principal:
 2. **Modo supervisado**: cuando el fork escribe `preview-*.md`, el agente
    principal lo lee, lo muestra al usuario y espera aprobación. Si aprueba,
    envía una señal al fork para que haga click en enviar.
+
+2b. **Captcha manual**: si el fork escribe `estado: requiere_captcha_manual`,
+   el agente principal muestra esta advertencia y espera confirmación:
+
+   ```
+   ⚠️  ACCIÓN REQUERIDA — Checkbox "I'm not a robot"
+
+       El formulario de <Empresa> — <Cargo> tiene un reCAPTCHA que el
+       automatizador no puede resolver. Todos los demás campos ya están
+       llenos.
+
+       👉 Abrí el formulario en tu navegador: <URL>
+       👉 Marcá el checkbox "I'm not a robot" (o completá el desafío).
+       👉 Avisame cuando esté listo — yo hago click en Enviar.
+
+       ¿Ya lo completaste? (sí / omitir esta vacante)
+   ```
+   Si el usuario responde "sí": el agente principal retoma el fork y hace
+   click en enviar. Si responde "omitir": registra la vacante como
+   `pendiente_captcha` en `registro.xlsx`.
 
 3. Después de cada fork terminado, el agente principal **registra
    inmediatamente** la postulación en `postulaciones/registro.xlsx`:
