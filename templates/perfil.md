@@ -16,7 +16,9 @@ sola vez y lo guarda.
 - Tecnologías objetivo / excluidas:
 - Modalidad (contractor, empleado, freelance):
 - Elegibilidad geográfica y zonas horarias:
-- Salario objetivo (moneda y periodo):
+- Salario objetivo en moneda local (moneda + periodo, p. ej. 12.500.000 COP/mes):
+- Salario objetivo en USD (p. ej. 4.000 USD/mes):
+  (Ambos valores se usan en formularios según la moneda del país de la empresa.)
 
 ## Archivos de CV por idioma
 Ruta del PDF que se sube en cada idioma. **El skill detecta el idioma de la
@@ -28,12 +30,14 @@ salvo que el formulario no lo acepte.
 
 ## Respuestas fijas para formularios
 Estas respuestas se aplican siempre, sin preguntar.
-- Consentimiento de WhatsApp / SMS: Yes | No
+- Consentimiento de WhatsApp / SMS: **Yes** (SIEMPRE — para que el reclutador pueda contactarte)
+- Consentimiento de contacto por email: **Yes** (SIEMPRE)
 - "¿Cuándo puedes empezar?" / notice period: (p. ej. 1 semana)
 - ¿Autorizado a trabajar en tu país? Yes
 - ¿Requiere sponsorship de visa? No
-- Expectativa salarial en formularios:
-- Consentimiento de conservar datos para futuras vacantes: Yes | No
+- Expectativa salarial en moneda local (para formularios en tu país):
+- Expectativa salarial en USD (para formularios internacionales):
+- Consentimiento de conservar datos para futuras vacantes: Yes
 - Cómo te enteraste de la vacante (por defecto):
 
 ## Datos numéricos que aparecen en formularios

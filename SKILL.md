@@ -1,6 +1,6 @@
 ---
 name: job-hunter
-version: 1.1.0
+version: 1.2.0
 description: >
   Head hunter personal para búsqueda de empleo en desarrollo de software.
   Diagnostica y reconstruye CVs optimizados para ATS con 3 diseños
@@ -122,12 +122,36 @@ defecto: Diseño A para portales, Diseño B para envío directo a personas.
 
 **GATE — el usuario aprueba el CV en markdown antes de generar cualquier PDF.**
 
+**Regla de contenido obligatoria**: Antes de escribir el markdown final,
+revisa el texto y elimina cualquier elemento que pueda hacer que los
+filtros de IA rechacen el CV:
+- No incluyas advertencias, disclaimers ni notas sobre generación por IA.
+- No menciones "Claude", "ChatGPT", "generado por IA" ni herramientas similares.
+- No uses frases genéricas de relleno que los ATS penalizan ("dinámico",
+  "apasionado por", "equipo multidisciplinario" sin contexto concreto).
+- Cada logro debe estar respaldado por algo que el usuario confirmó — no
+  inventes métricas.
+
 1. Escribe/actualiza `cv/cv-es.md` y `cv/cv-en.md` (y otros idiomas si se
    piden) como fuente de verdad.
 2. Genera los PDFs elegidos con `scripts/generar-pdf.py <cv.md> <template> <salida.pdf>`.
 3. Corre `scripts/test-parseo.py <salida.pdf>` sobre cada PDF generado
    antes de darlo por bueno — si el texto sale revuelto, corrige el
    template o el markdown, no lo ignores.
+
+**GATE — muestra al usuario la ruta completa de cada PDF generado y
+espera su aprobación explícita antes de pasar al siguiente paso.**
+
+Formato del mensaje de aprobación:
+```
+✅ PDF generado:
+  • Español — Diseño A: job-hunter-workspace/cv/output/cv-es-a.pdf
+  • Inglés  — Diseño A: job-hunter-workspace/cv/output/cv-en-a.pdf
+
+¿Aprobás estos archivos para continuar? (sí / no / revisar)
+```
+Si el usuario responde "no" o "revisar", vuelve al paso anterior que
+corresponda y no avances hasta recibir un "sí" explícito.
 
 ### 1.6 Transición a Fase 2
 
@@ -150,13 +174,51 @@ HTML. Nunca mezcles diseño C con una postulación por portal ATS.
 
 **Prerequisito:** Chrome MCP verificado.
 
+### 2.0 Selección de puesto para esta sesión
+
+**Antes de cualquier configuración**, ejecuta este paso interactivo:
+
+1. **Lee el CV** del usuario (`cv/cv-es.md` o `cv/cv-en.md`) y extrae
+   todas las tecnologías, roles y áreas de experiencia relevantes.
+2. **Genera una lista de títulos de cargo sugeridos** basados en esas
+   aptitudes (mínimo 6, máximo 12 opciones).
+3. **Muestra la lista como checkboxes** y pide al usuario que:
+   - Marque uno o varios de los sugeridos, Y/O
+   - Escriba el título exacto que desea buscar en esta sesión.
+
+Formato del mensaje:
+```
+🔍 ¿Qué puesto(s) buscamos en esta sesión?
+
+Basado en tu CV, estas son las opciones recomendadas:
+  [ ] Senior iOS Developer (Swift, SwiftUI)
+  [ ] Senior Android Developer (Kotlin, Jetpack Compose)
+  [ ] Mobile Developer (iOS + Android)
+  [ ] Senior Software Engineer (Mobile)
+  [ ] AR/Computer Vision Engineer
+  [ ] Python Developer (CV / AI)
+  [ ] AI/ML Engineer
+  [ ] ... (añade el que prefieras)
+
+Podés marcar varios o escribir uno diferente.
+```
+
+Guarda los títulos elegidos en `busqueda/config.md` bajo `puestos_sesion`.
+**No avances a 2.1 hasta tener al menos un puesto confirmado.**
+
 ### 2.1 Configuración
 
 Define con el usuario (guarda en `busqueda/config.md`):
 - Hasta 5 portales por sesión (LinkedIn Jobs, Indeed, GetOnBoard, Torre.ai,
   Computrabajo, etc. — ver `references/portales-soportados.md`).
-- Keywords del CV + títulos de cargo objetivo.
+- Keywords del CV + los títulos de cargo elegidos en el paso 2.0.
 - Filtros: modalidad, ubicación, rango salarial, experiencia.
+- **Salario objetivo**: pregunta (y guarda en `perfil.md` si no está) en
+  **dos monedas**:
+  - En la moneda del país donde reside el usuario (p. ej. COP, MXN, ARS).
+  - En USD (dólares americanos).
+  Ambos valores son requeridos; el skill usará el que corresponda según
+  el país de la empresa o la moneda del formulario.
 - Criterios de descarte automático: salario bajo el mínimo del usuario,
   match <50% en requisitos duros, red flags (requisitos contradictorios,
   "ninja/rockstar", +15 requisitos duros), **restricciones de elegibilidad
@@ -221,6 +283,11 @@ Por cada vacante aprobada:
    disponibilidad, autorización de trabajo). Para un dato numérico que no
    esté respaldado por el CV o `perfil.md`, usa el valor más conservador y
    **repórtalo como supuesto** en el resumen de sesión.
+   **Regla de contacto**: Si el formulario pregunta si el usuario autoriza
+   ser contactado por WhatsApp o email, responde **siempre Yes / Sí**.
+   Esto incluye variantes como "¿Acepta recibir mensajes por WhatsApp?",
+   "Consent to receive communications", "Contact via email/WhatsApp", etc.
+   Si el campo ofrece múltiples canales (WhatsApp Y email), marca **ambos**.
 6. **Verifica antes de enviar**: confirma con captura o leyendo el DOM que
    radios, desplegables, casillas y el archivo quedaron como se quería.
 7. Modo supervisado: muestra resumen de campos llenados, espera
