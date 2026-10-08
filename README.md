@@ -44,18 +44,94 @@ Eso es todo. Claude Code detecta el skill automáticamente.
 
 | Requisito | Para qué | Lo instala el skill |
 |-----------|----------|-------------|
-| [Claude Code](https://claude.com/claude-code) | Correr el skill | — (manual, una vez) |
-| Python 3 | Generar los PDFs del CV | El skill corre `pip install` automáticamente |
-| Chrome MCP (`claude-in-chrome` o `chrome-devtools`) | Navegar y postularse | El skill detecta cuál tenés y guía la configuración |
+| [Claude Code](https://claude.com/claude-code) | Correr el skill | — (ver paso 1) |
+| Python 3 | Generar los PDFs del CV | El skill corre `pip install` automático |
+| Chrome MCP (`claude-in-chrome` o `chrome-devtools`) | Navegar y postularse | El skill detecta cuál tenés |
 
-**No necesitás instalar nada a mano.** El skill verifica al arrancar si
-Python y el Chrome MCP están disponibles. Si Python no está instalado, te
-da el comando exacto para tu sistema operativo. Si el Chrome MCP no está
-configurado, te guía paso a paso.
+El skill verifica e instala las dependencias Python automáticamente al
+arrancar. Solo hay dos pasos manuales inevitables: instalar Python 3 por
+primera vez, y configurar el Chrome MCP la primera vez.
 
-Solo hay dos casos que requieren acción manual (inevitablemente):
-1. Instalar Python 3 por primera vez en el sistema.
-2. Instalar y autorizar la extensión de Chrome MCP la primera vez.
+---
+
+#### Instalar Python 3 (solo si no lo tenés)
+
+Abrí una terminal y ejecutá el comando de tu sistema operativo:
+
+```bash
+# macOS (con Homebrew)
+brew install python3
+
+# macOS (sin Homebrew — descargá el instalador)
+# → https://www.python.org/downloads/macos/
+
+# Ubuntu / Debian
+sudo apt update && sudo apt install python3 python3-pip
+
+# Windows
+# → https://www.python.org/downloads/windows/
+# Durante la instalación, marcá "Add Python to PATH"
+```
+
+Para verificar que quedó bien: `python3 --version` debe mostrar 3.8 o mayor.
+
+---
+
+#### Instalar el Chrome MCP (solo la primera vez)
+
+Elegí **una** de las dos opciones según lo que prefieras:
+
+**Opción A — `claude-in-chrome` (extensión de Chrome)**
+
+1. Abrí Chrome y andá a `chrome://extensions/`
+2. Activá **Modo desarrollador** (arriba a la derecha).
+3. Descargá o cloná la extensión desde su repositorio y cargala con
+   "Cargar descomprimida".
+4. Una vez instalada, hacé click en el ícono de la extensión y autorizá
+   el acceso a los sitios donde querés postularte.
+5. En tu proyecto, agregá esto en `.mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "claude-in-chrome": {
+         "command": "npx",
+         "args": ["-y", "@anthropic-ai/claude-in-chrome-mcp"]
+       }
+     }
+   }
+   ```
+
+**Opción B — `chrome-devtools` MCP (vía protocolo DevTools)**
+
+1. Abrí Chrome con el puerto de depuración habilitado:
+   ```bash
+   # macOS
+   open -a "Google Chrome" --args --remote-debugging-port=9222
+
+   # Windows
+   chrome.exe --remote-debugging-port=9222
+
+   # Linux
+   google-chrome --remote-debugging-port=9222
+   ```
+2. En tu proyecto, agregá esto en `.mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "chrome-devtools": {
+         "command": "npx",
+         "args": ["-y", "@anthropic-ai/mcp-chrome-devtools"],
+         "env": { "CHROME_DEBUGGING_PORT": "9222" }
+       }
+     }
+   }
+   ```
+3. Reiniciá Claude Code — debería detectar Chrome automáticamente.
+
+> El skill corre `scripts/verificar-chrome.sh` al arrancar para confirmar
+> que la conexión funciona. Si algo falla, te indica exactamente qué revisar.
+
+---
 
 ### 3. Activar
 
@@ -179,8 +255,17 @@ Por cada postulación:
    - WhatsApp / email: **siempre Sí** (para que te puedan contactar)
    - Disponibilidad: el valor que guardaste en `perfil.md`
    - Salario: moneda local o USD según el formulario
-6. Confirma con captura que el envío fue exitoso.
-7. Registra la postulación en `postulaciones/registro.xlsx` inmediatamente.
+6. **Antes de enviar**, detecta si hay un checkbox "I'm not a robot"
+   (reCAPTCHA v2). Si lo encuentra, el skill no puede marcarlo — te avisa:
+
+   > ⚠️ **ACCIÓN REQUERIDA — Checkbox "I'm not a robot"**
+   > Todo el formulario ya está lleno. Solo falta ese checkbox.
+   > Abrí la URL, marcalo, y avisame — yo hago click en Enviar.
+
+   Una vez que confirmás, el skill retoma y envía. Si preferís omitir
+   esa vacante, queda guardada como `pendiente_captcha` para después.
+7. Confirma con captura que el envío fue exitoso.
+8. Registra la postulación en `postulaciones/registro.xlsx` inmediatamente.
 
 ---
 
@@ -238,7 +323,10 @@ una vez y lo guarda.
 ## Lo que el skill NO hace
 
 - No instala MCPs ni crea cuentas en portales por vos.
-- No resuelve CAPTCHAs (hCaptcha en Lever, Cloudflare en Workable).
+- No resuelve CAPTCHAs de bloqueo (hCaptcha en Lever, Cloudflare en Workable).
+- No puede marcar el checkbox "I'm not a robot" (reCAPTCHA v2 — corre en
+  un iframe sandboxed de Google que el Chrome MCP no puede tocar). En cambio,
+  te avisa, te pasa la URL y espera a que lo hagas vos.
 - No inventa logros ni métricas que no confirmaste.
 - No genera imágenes (solo prompts para que las generes con otra herramienta).
 - No envía nada sin que lo veás primero (en modo supervisado).
@@ -292,6 +380,14 @@ parseo complicado, Claude te avisa.
 **¿Los PDFs aprobados se reemplazan automáticamente si corrijo el CV?**  
 No. Si editás el CV después de aprobar, tenés que pasar de nuevo por el
 gate de aprobación. Así evitás enviar una versión que no revisaste.
+
+**¿Qué pasa con el checkbox "I'm not a robot"?**  
+El Chrome MCP no puede interactuar con el reCAPTCHA v2 porque corre
+dentro de un iframe sandboxed de Google. El skill detecta el checkbox
+antes de intentar enviar, para el envío, y te muestra una advertencia
+con la URL del formulario. Vos lo marcás manualmente, avisás, y el skill
+retoma y hace click en Enviar. Si preferís, también podés omitir esa
+vacante — queda guardada como `pendiente_captcha` en tu registro.
 
 **¿El skill guarda mis datos personales en el repositorio?**  
 No. Todo tu workspace vive fuera del repo. Este repositorio no contiene

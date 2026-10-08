@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.2
+- **README — reCAPTCHA**: Fase 3 actualizada con el paso 6 de detección del
+  checkbox "I'm not a robot", flujo de advertencia y opción de omitir.
+  Sección "Lo que NO hace" actualizada con la distinción entre reCAPTCHA v2
+  (campo dentro del formulario) y CAPTCHAs de bloqueo. Nueva pregunta en FAQ.
+- **README — instalación paso a paso**: la sección de requisitos previos ahora
+  incluye instrucciones concretas para instalar Python 3 (macOS/Linux/Windows)
+  y para configurar cada opción de Chrome MCP (`claude-in-chrome` y
+  `chrome-devtools`) con los comandos exactos y el fragmento de `.mcp.json`.
+
 ## 1.4.1
 - **Fase 3 — detección de reCAPTCHA "I'm not a robot"**: el subagente escanea
   el formulario antes de enviar buscando el checkbox de reCAPTCHA v2. Si lo
