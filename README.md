@@ -42,18 +42,20 @@ Eso es todo. Claude Code detecta el skill automáticamente.
 
 ### 2. Requisitos previos
 
-| Requisito | Para qué | Obligatorio |
+| Requisito | Para qué | Lo instala el skill |
 |-----------|----------|-------------|
-| [Claude Code](https://claude.com/claude-code) | Correr el skill | Sí |
-| Python 3 + `weasyprint` | Generar los PDFs del CV | Sí (Fase 1) |
-| Chrome MCP (`claude-in-chrome` o `chrome-devtools`) | Navegar y postularse | Sí (Fases 2 y 3) |
+| [Claude Code](https://claude.com/claude-code) | Correr el skill | — (manual, una vez) |
+| Python 3 | Generar los PDFs del CV | El skill corre `pip install` automáticamente |
+| Chrome MCP (`claude-in-chrome` o `chrome-devtools`) | Navegar y postularse | El skill detecta cuál tenés y guía la configuración |
 
-Instala las dependencias Python:
-```bash
-pip install markdown weasyprint pypdf
-```
+**No necesitás instalar nada a mano.** El skill verifica al arrancar si
+Python y el Chrome MCP están disponibles. Si Python no está instalado, te
+da el comando exacto para tu sistema operativo. Si el Chrome MCP no está
+configurado, te guía paso a paso.
 
-Para el Chrome MCP, sigue `references/prerequisitos-chrome.md`.
+Solo hay dos casos que requieren acción manual (inevitablemente):
+1. Instalar Python 3 por primera vez en el sistema.
+2. Instalar y autorizar la extensión de Chrome MCP la primera vez.
 
 ### 3. Activar
 
@@ -143,12 +145,14 @@ en **dos monedas**:
 - Moneda de tu país (p. ej. 12.500.000 COP/mes)
 - USD (p. ej. 4.000 USD/mes)
 
-**2.2 Búsqueda**
-Por cada vacante, Claude calcula el match real ("Cumplís X/Y requisitos
-duros") y da un veredicto honesto: postularte o no. Máximo 20 vacantes
-nuevas por sesión.
+**2.2 Búsqueda con subagentes (paralela)**
+Cada portal se ejecuta en un **subagente fork separado**, en paralelo.
+El contexto principal no recibe el tráfico de Chrome — solo el resultado
+consolidado. Menos tokens consumidos, misma información útil.
+Cada subagente calcula el match real y escribe su resultado en archivos
+locales; el agente principal los une y te muestra el resumen.
 
-> ⛔ El usuario marca qué postular y qué descartar antes de continuar.
+> ⛔ Vos marcás qué postular y qué descartar antes de continuar.
 
 **Fuentes de búsqueda**: portales web + APIs públicas de Greenhouse, Ashby,
 Lever y Recruitee (ofertas vigentes, no enlaces vencidos).
@@ -159,11 +163,15 @@ Lever y Recruitee (ofertas vigentes, no enlaces vencidos).
 
 **Prerrequisito:** vacantes aprobadas en Fase 2.
 
-**Modo supervisado** (por defecto): Claude llena → muestra resumen → vos aprobás → envía.  
-**Modo autónomo** (si lo confirmás): llena y envía sin pausa. Máximo 10 por sesión.
+**Modo supervisado** (por defecto): subagente llena → agente principal muestra resumen → vos aprobás → subagente envía.  
+**Modo autónomo** (si lo confirmás): subagente llena y envía sin pausa. Máximo 10 por sesión.
+
+**Cada postulación corre en su propio subagente fork** — el contexto
+principal solo ve el resultado final (éxito / fallo / campos llenados),
+no todo el detalle de la navegación.
 
 Por cada postulación:
-1. Navega a la vacante con Chrome MCP.
+1. El subagente navega a la vacante con Chrome MCP.
 2. Llena los campos con tu perfil (`perfil.md`).
 3. Si pide **cover letter**: lo genera y lo sube como PDF — nunca lo deja vacío.
 4. Sube el PDF del CV desde `cv/aprobados/` en el idioma que corresponda.

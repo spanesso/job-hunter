@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0
+- **Prerequisitos automáticos**: el skill verifica e instala `markdown`,
+  `weasyprint` y `pypdf` con `pip install` al arrancar la Fase 1. Si Python 3
+  no está instalado, entrega el comando exacto por OS. Para el Chrome MCP,
+  detecta automáticamente cuál está disponible y guía la configuración solo
+  si ninguno responde. Solo se le pide acción al usuario en los dos casos
+  genuinamente manuales (instalar Python por primera vez, autorizar la extensión).
+- **Fase 2 — subagentes por portal**: cada portal de búsqueda corre en un
+  fork separado (Agent con subagent_type: "fork"). Los forks navegan, calculan
+  match y escriben resultados en archivos locales; el agente principal consolida.
+  Menos tokens en el contexto principal.
+- **Fase 3 — subagente por vacante**: cada formulario corre en su propio fork.
+  En modo supervisado, el fork escribe un preview y espera señal del agente
+  principal antes de enviar. El agente principal solo registra el resultado final.
+- README actualizado: tabla de requisitos con columna "Lo instala el skill",
+  sección de búsqueda y postulación actualizada con mención a subagentes.
+
 ## 1.3.0
 - **Paso 0 — Idioma de respuesta**: al iniciar el skill pregunta en qué idioma
   responder. Lo guarda en `perfil.md` y en memoria de Claude Code (`mem_save`);

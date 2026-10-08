@@ -1,6 +1,6 @@
 ---
 name: job-hunter
-version: 1.3.0
+version: 1.4.0
 description: >
   Head hunter personal para búsqueda de empleo en desarrollo de software.
   Diagnostica y reconstruye CVs optimizados para ATS con 3 diseños
@@ -52,17 +52,59 @@ Esto se aplica en las tres fases:
 - **Fase 2 (búsqueda):** análisis de match honesto, no aspiracional.
 - **Fase 3 (postulación):** cover letters que venden, registro inmediato.
 
-## Prerequisitos
+## Prerequisitos — verificación e instalación automática
 
-1. **Chrome MCP** — requerido para Fases 2 y 3. Antes de iniciar cualquiera
-   de esas fases, lee `references/prerequisitos-chrome.md` y ejecuta
-   `scripts/verificar-chrome.sh`. Si la verificación falla, detente y pide
-   al usuario que resuelva la conexión. No improvises llenado de
-   formularios sin Chrome MCP verificado.
-2. **Python 3** con `weasyprint` (o `wkhtmltopdf` como alternativa) para
-   generar PDFs. Si falta, indícaselo al usuario — este skill no instala
-   dependencias por su cuenta.
-3. Este skill **no instala MCPs ni crea cuentas** en nombre del usuario.
+El skill verifica y resuelve los requisitos por sí mismo al arrancar.
+**No le pidas al usuario que instale nada a mano** salvo los dos casos
+marcados como "intervención manual" abajo.
+
+### Python 3 + dependencias de PDF
+
+Ejecuta este bloque inmediatamente al iniciar la Fase 1:
+
+```bash
+python3 -c "import markdown, weasyprint, pypdf" 2>/dev/null \
+  || pip install --quiet markdown weasyprint pypdf
+```
+
+- Si el comando termina sin error → requisito OK, continúa.
+- Si `pip install` falla por permisos → intenta `pip install --user`.
+- Si Python 3 no está disponible en el sistema:
+  ```
+  ⚠️  Necesitás Python 3 para generar los PDFs del CV.
+      • macOS:  brew install python3
+      • Linux:  sudo apt install python3 python3-pip
+      • Windows: descargá el instalador desde python.org
+      Avisame cuando esté listo y continuamos.
+  ```
+  Detente hasta que el usuario confirme que Python está instalado.
+
+### Chrome MCP
+
+Ejecuta `scripts/verificar-chrome.sh` antes de iniciar la Fase 2.
+
+- Si el script reporta **OK** → continúa.
+- Si falla, el skill intenta detectar automáticamente qué MCP está
+  disponible (`claude-in-chrome` o `chrome-devtools`) usando
+  `ToolSearch` o probando una llamada de test con cada uno.
+- Si ninguno responde:
+  ```
+  ⚠️  Chrome MCP no está disponible. Para las Fases 2 y 3 necesitás uno
+      de estos dos (elige el que ya tengas instalado):
+
+      A) claude-in-chrome (extensión de Chrome)
+         → sigue references/prerequisitos-chrome.md › sección "claude-in-chrome"
+
+      B) chrome-devtools MCP
+         → sigue references/prerequisitos-chrome.md › sección "chrome-devtools"
+
+      Avisame cuando esté conectado.
+  ```
+  No improvises llenado de formularios sin Chrome MCP verificado.
+
+**Intervenciones que sí requieren al usuario (solo estas dos):**
+1. Python 3 no instalado en el sistema (el skill no puede instalar intérpretes).
+2. Chrome MCP no configurado (requiere acción manual en la extensión o el sistema).
 
 ## Espacio de trabajo
 
@@ -287,27 +329,55 @@ Define con el usuario (guarda en `busqueda/config.md`):
   muchos enlaces del buscador web, que suelen estar caducados (404). Ver
   `references/ats-formularios.md`.
 
-### 2.2 Ejecución (modo head hunter)
+### 2.2 Ejecución con subagente de búsqueda
 
-Por cada vacante encontrada:
-1. Extrae título, empresa, URL, requisitos, salario visible.
-2. Separa requisitos duros vs. deseables. Calcula match real:
-   "Cumples X/Y duros, X/Y deseables".
-3. Da un veredicto honesto: "Fuerte candidato" / "Match parcial" / "No
-   recomiendo postularte" — y por qué.
-4. Match ≥60% en duros → `busqueda/vacantes-nuevas.md`. Si no →
-   `busqueda/vacantes-descartadas.md` con la razón.
-5. Límite: máximo 20 vacantes nuevas por sesión.
+**Cada portal se ejecuta en un subagente fork separado** para aislar el
+tráfico de Chrome MCP del contexto principal y reducir el consumo de tokens.
+
+El agente principal:
+1. Lee `busqueda/config.md` (portales, puestos, filtros) y prepara un
+   bloque de instrucciones para el subagente.
+2. Lanza un fork (Agent con `subagent_type: "fork"`) por cada portal,
+   con este prompt estructurado:
+
+   ```
+   Eres un scout de vacantes. Tarea para esta ejecución:
+   - Portal: <nombre>
+   - URL de búsqueda: <url con filtros ya aplicados>
+   - Puestos a buscar: <lista de títulos de cargo>
+   - CV del candidato: <resumen de habilidades clave de cv/cv-en.md>
+   - Filtros: modalidad=<X>, salario_min=<Y USD>
+   - Criterios de descarte: <lista de flags>
+
+   Por cada vacante que encuentres:
+   1. Extrae: título, empresa, URL, requisitos, salario visible.
+   2. Separa requisitos duros vs. deseables.
+   3. Calcula match: "X/Y duros, X/Y deseables".
+   4. Veredicto: "Fuerte" / "Parcial" / "No recomendado" + razón.
+   5. Match ≥60% duros → lista "aprobadas". Resto → lista "descartadas".
+
+   Escribe el resultado en:
+     busqueda/resultado-<portal>-<timestamp>.md
+   Formato: una entrada YAML por vacante.
+   Límite: 20 vacantes aprobadas en total. Para cuando llegues a ese límite.
+   ```
+
+3. Espera a que todos los forks terminen (en paralelo si hay varios portales).
+4. Lee los archivos `busqueda/resultado-*.md` de cada fork y los consolida
+   en `busqueda/vacantes-nuevas.md` (aprobadas) y `vacantes-descartadas.md`.
+5. Presenta el resumen consolidado al usuario.
 
 **GATE — el usuario marca qué postular y qué descartar.**
 
-### 2.3 Errores de navegación
+### 2.3 Errores de navegación en subagentes
 
-- Chrome MCP pierde conexión → pausa, da instrucciones de reconexión.
-- Portal pide login → el usuario inicia sesión manualmente.
-- CAPTCHA → salta, marca "intervención manual". **No lo resuelvas.**
-  (hCaptcha en Lever, Cloudflare en Workable y CAPTCHA de imagen en Zoho
-  son bloqueos habituales; ver `references/ats-formularios.md`.)
+Cada subagente de búsqueda maneja sus propios errores y los reporta en su
+archivo de resultado:
+- Chrome MCP pierde conexión → el fork escribe `estado: error_conexion` y termina.
+- Portal pide login → escribe `estado: requiere_login` con la URL; el agente
+  principal lo reporta al usuario.
+- CAPTCHA → escribe `estado: captcha_bloqueado`; el agente principal lo marca
+  como "intervención manual".
 - Nunca crees cuentas en nombre del usuario.
 
 ## Fase 3 — Postulación
@@ -316,69 +386,80 @@ Por cada vacante encontrada:
 
 ### 3.1 Modo de operación
 
-- **Supervisado** (por defecto): llenar → mostrar preview → esperar
-  aprobación → enviar.
-- **Autónomo** (solo si el usuario lo confirma explícitamente): llenar y
-  enviar sin pausa. Máximo 10 postulaciones por sesión.
+- **Supervisado** (por defecto): el subagente llena → el agente principal
+  muestra resumen → vos aprobás → el subagente envía.
+- **Autónomo** (solo si el usuario lo confirma explícitamente): el
+  subagente llena y envía sin pausa. Máximo 10 por sesión.
 
-### 3.2 Llenado de formularios
+### 3.2 Llenado de formularios con subagente por vacante
 
-Por cada vacante aprobada:
-1. Navega a la URL con Chrome MCP.
-2. Llena los campos con datos de `cv/cv-[lang].md` y `cv/perfil.md`
-   (incluye salario objetivo).
-3. Si el formulario pide cover letter: escríbelo siguiendo
-   `references/cover-letter-guide.md` (abre con el problema de la
-   empresa, conecta una experiencia específica, cierra con CTA concreto,
-   nunca repite el CV en prosa). Guarda el PDF en
-   `postulaciones/cover-letters/[empresa]-[cargo].pdf` y súbelo —
-   **nunca** dejes ese campo vacío si existe.
-4. Sube el PDF del CV (diseño A o B según el portal — nunca C). **Elige
-   el idioma por vacante**: detecta el idioma de la descripción y del
-   formulario y sube el PDF de ese idioma según `perfil.md`.
-5. Aplica las **respuestas fijas** de `perfil.md` (consentimientos,
-   disponibilidad, autorización de trabajo). Para un dato numérico que no
-   esté respaldado por el CV o `perfil.md`, usa el valor más conservador y
-   **repórtalo como supuesto** en el resumen de sesión.
-   **Regla de contacto**: Si el formulario pregunta si el usuario autoriza
-   ser contactado por WhatsApp o email, responde **siempre Yes / Sí**.
-   Esto incluye variantes como "¿Acepta recibir mensajes por WhatsApp?",
-   "Consent to receive communications", "Contact via email/WhatsApp", etc.
-   Si el campo ofrece múltiples canales (WhatsApp Y email), marca **ambos**.
-6. **Verifica antes de enviar**: confirma con captura o leyendo el DOM que
-   radios, desplegables, casillas y el archivo quedaron como se quería.
-7. Modo supervisado: muestra resumen de campos llenados, espera
-   aprobación antes de enviar.
-8. Click en enviar y **confirma con captura la pantalla de éxito** (el
-   texto de la página puede estar desactualizado justo tras enviar).
+**Cada postulación se ejecuta en un subagente fork separado.** El contexto
+principal solo recibe el resultado (éxito / fallo / campos llenados), no
+todo el tráfico de Chrome MCP.
 
-### 3.2b Elegibilidad y honestidad
+El agente principal:
+1. Para cada vacante aprobada, lanza un fork con este prompt:
 
-Antes de llenar, lee las restricciones de la oferta. Si exige nacionalidad,
-residencia o autorización que el usuario no tiene, **no postules**: marca
-"descartada" con la razón. Nunca afirmes en un formulario algo que no sea
-cierto para pasar una validación.
+   ```
+   Eres un asistente de postulación. Tu tarea es completar UNA postulación.
+
+   VACANTE
+   - URL: <url>
+   - Empresa: <nombre>
+   - Cargo: <título>
+   - Idioma detectado: <es/en>
+   - Match calculado: <X/Y duros, X/Y deseables>
+
+   ARCHIVOS DISPONIBLES
+   - Perfil: cv/perfil.md  (datos personales, respuestas fijas, salario)
+   - CV idioma vacante: cv/aprobados/cv-<idioma>-aprobado.pdf
+   - CV inglés:         cv/aprobados/cv-en-aprobado.pdf
+
+   INSTRUCCIONES
+   1. Verifica elegibilidad (nacionalidad, residencia, visa). Si no cumple → 
+      escribe estado=descartada, razón, y termina.
+   2. Navega a la URL con Chrome MCP.
+   3. Llena todos los campos usando perfil.md y el CV en el idioma correcto.
+   4. Consentimiento WhatsApp / email → SIEMPRE Yes / Sí (todos los canales).
+   5. Si pide cover letter: generalo siguiendo references/cover-letter-guide.md.
+      Guardalo en postulaciones/cover-letters/<empresa>-<cargo>.pdf y súbelo.
+   6. Sube el PDF desde cv/aprobados/ (diseño A o B — nunca C).
+   7. Verifica con captura que radios, desplegables, casillas y archivo
+      quedaron correctos.
+   8. Modo supervisado: escribe resumen de campos llenados en
+      postulaciones/preview-<empresa>-<cargo>.md y detente — espera
+      confirmación del agente principal antes de hacer click en enviar.
+      Modo autónomo: envía directamente.
+   9. Confirma con captura la pantalla de éxito.
+   10. Escribe el resultado en postulaciones/resultado-<empresa>-<cargo>.md:
+       estado (enviada/fallida/pendiente), campos llenados, supuestos usados,
+       ruta de la captura de éxito.
+
+   MANEJO DE ERRORES
+   - Formulario no carga → 1 reintento, luego estado=error, detente.
+   - Campo no reconocido → estado=intervencion_manual, detente.
+   - Upload falla → 1 reintento, luego estado=error.
+   - Circuit breaker: si ya fallaron 3 campos consecutivos → estado=error, detente.
+   ```
+
+2. **Modo supervisado**: cuando el fork escribe `preview-*.md`, el agente
+   principal lo lee, lo muestra al usuario y espera aprobación. Si aprueba,
+   envía una señal al fork para que haga click en enviar.
+
+3. Después de cada fork terminado, el agente principal **registra
+   inmediatamente** la postulación en `postulaciones/registro.xlsx`:
+   Timestamp, Empresa, Cargo, URL, Match %, Idioma CV, Cover letter, Estado,
+   Notas. No acumules registros para el final — si se corta la sesión se pierde.
 
 ### 3.3 Registro inmediato
 
-Después de **cada** envío (exitoso o fallido), añade una fila a
-`postulaciones/registro.xlsx`: Timestamp, Empresa, Cargo, URL, Match %,
-Idioma CV, Cover letter (sí/no), Diseño usado, Estado, Notas. Esto es la
-base de datos del usuario — nunca lo dejes para el final de la sesión,
-porque si se corta la sesión se pierde el registro.
+El agente principal escribe en `registro.xlsx` después de cada fork, sin
+esperar al cierre de sesión.
 
-### 3.4 Manejo de fallos
+### 3.4 Reporte de sesión
 
-- Formulario no carga → 1 reintento, luego "intervención manual".
-- Campo no reconocido → pausa, pregunta al usuario.
-- Upload falla → 1 reintento, luego pausa.
-- **Circuit breaker:** 3 fallos consecutivos → detente y notifica, no
-  sigas intentando a ciegas.
-
-### 3.5 Reporte de sesión
-
-Al cerrar: N enviadas / N fallidas / N pendientes, ruta a
-`registro.xlsx`, lista de intervenciones manuales pendientes.
+Al cerrar: N enviadas / N fallidas / N pendientes, ruta a `registro.xlsx`,
+lista de vacantes con `intervencion_manual` pendiente.
 
 ## Stop conditions
 
