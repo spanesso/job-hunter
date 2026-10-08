@@ -1,124 +1,305 @@
 # job-hunter
 
-Un skill de [Claude Code](https://claude.com/claude-code) que actúa como
-un **head hunter personal**: diagnostica tu CV con ojo de reclutador, lo
-reconstruye en 3 diseños pensados para sobrevivir filtros ATS *y*
-revisión humana, busca vacantes con análisis de match honesto (no
-aspiracional), y te asiste en la postulación vía automatización de
-navegador.
+> Un skill de [Claude Code](https://claude.com/claude-code) que actúa como
+> tu **head hunter personal**: prepara tu CV, busca vacantes con análisis
+> honesto de compatibilidad, y te asiste para postularte — con verificación
+> real en el navegador.
 
-No es un asistente que hace lo que le pides sin filtro. Es un reclutador
-senior que te dice lo que no quieres oír cuando tu CV o una vacante lo
-justifican — y documenta esa recomendación, aunque la decisión final sea
-siempre tuya.
+---
 
-## Qué hace
+## ¿Qué es esto?
 
-- **Diagnóstico brutal del CV**: qué vería un reclutador en los primeros
-  6 segundos, qué falta, qué sobra, y una estimación honesta de tu
-  probabilidad de pasar el filtro ATS y la revisión humana.
-- **3 diseños de CV** generados del mismo markdown fuente:
-  - **A — ATS-First**: máxima compatibilidad de parseo, para portales.
-  - **B — Balanced**: profesional con personalidad, para envío directo.
-  - **C — Portfolio-Ready**: visual, con sidebar, solo para envío humano
-    directo (nunca para portales ATS).
-- **Búsqueda de vacantes** con análisis de match real: requisitos duros
-  vs. deseables, red flags ("rockstar/ninja", salario ausente,
-  requisitos contradictorios), y una recomendación honesta de postularte
-  o no.
-- **Cover letters que venden**: abren con el problema de la empresa,
-  conectan una experiencia específica del candidato, cierran con un
-  call-to-action — nunca repiten el CV en prosa.
-- **Postulación asistida** vía Chrome MCP, con registro inmediato de
-  cada envío en un Excel (tu base de datos de seguimiento).
-- **Respuestas fijas** en `perfil.md` (consentimientos, disponibilidad,
-  CV por idioma): se definen una vez y se aplican a todos los formularios.
-- **CV por idioma**: detecta el idioma de cada vacante y sube el PDF
-  correspondiente.
-- **Búsqueda por APIs públicas** de Greenhouse, Ashby, Lever y Recruitee
-  (ofertas vigentes, no enlaces caducados) con `scripts/escanear-ats.py`.
-- **Verificación y honestidad**: confirma cada campo y la pantalla de éxito,
-  descarta vacantes cuyos requisitos de elegibilidad no cumples y reporta
-  como supuesto cualquier dato que no esté respaldado.
+`job-hunter` es un skill para Claude Code. Una vez instalado, convierte a
+Claude en un reclutador senior que trabaja **para ti**, no para la empresa.
+Te dice lo que no quieres oír cuando tu CV o una vacante lo justifican, y
+documenta su recomendación — aunque la decisión final siempre sea tuya.
 
-## Qué NO hace
+Funciona en **3 fases**, cada una con puntos de aprobación explícitos antes
+de avanzar:
 
-- No instala MCPs por ti. No crea cuentas en portales en tu nombre. No
-  resuelve CAPTCHAs. No inventa métricas o logros que no confirmaste. No
-  genera imágenes (solo prompts para que las generes tú con otra
-  herramienta).
+```
+┌─────────────────────────────────────────────────────────────┐
+│  FASE 1            FASE 2              FASE 3               │
+│  Preparar CV  ──►  Buscar vacantes ──► Postularse           │
+│                                                             │
+│  Diagnóstico       Análisis match      Formularios          │
+│  Reescritura       Lista aprobada      Cover letters        │
+│  PDF bilingüe      por el usuario      Registro Excel       │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Requisitos
+---
 
-- [Claude Code](https://claude.com/claude-code).
-- Un MCP de automatización de Chrome (p.ej. `claude-in-chrome` o
-  `chrome-devtools`) — solo necesario para las fases de búsqueda y
-  postulación. Ver `references/prerequisitos-chrome.md`.
-- Python 3 con `markdown`, `weasyprint` y `pypdf`:
-  ```bash
-  pip install markdown weasyprint pypdf
-  ```
+## Inicio rápido
 
-## Instalación
-
-Copia (o clona) esta carpeta dentro de `.claude/skills/job-hunter/` en el
-proyecto o directorio donde quieras usarlo:
+### 1. Instalar
 
 ```bash
 git clone https://github.com/spanesso/job-hunter.git .claude/skills/job-hunter
 ```
 
-Claude Code lo detectará automáticamente como skill disponible.
+Eso es todo. Claude Code detecta el skill automáticamente.
 
-## Uso
+### 2. Requisitos previos
 
-Simplemente pide, dentro de una sesión de Claude Code:
+| Requisito | Para qué | Obligatorio |
+|-----------|----------|-------------|
+| [Claude Code](https://claude.com/claude-code) | Correr el skill | Sí |
+| Python 3 + `weasyprint` | Generar los PDFs del CV | Sí (Fase 1) |
+| Chrome MCP (`claude-in-chrome` o `chrome-devtools`) | Navegar y postularse | Sí (Fases 2 y 3) |
 
-> "Ayúdame a mejorar mi CV para buscar trabajo" / "Busca vacantes de
-> [tu perfil]" / "Postúlame a esta vacante: [URL]"
+Instala las dependencias Python:
+```bash
+pip install markdown weasyprint pypdf
+```
 
-El skill avanza en 3 fases (CV → búsqueda → postulación), cada una con
-puntos de aprobación explícitos (*gates*) antes de generar archivos
-finales o enviar una postulación real. Nada se envía sin que lo veas
-primero, salvo que tú mismo confirmes el modo autónomo.
+Para el Chrome MCP, sigue `references/prerequisitos-chrome.md`.
 
-## Estructura
+### 3. Activar
+
+Dentro de una sesión de Claude Code, simplemente escribe:
+
+```
+/job-hunter
+```
+
+O en lenguaje natural:
+```
+Ayúdame a mejorar mi CV para buscar trabajo
+Busca vacantes de desarrollador iOS senior
+Postúlame a esta vacante: https://...
+```
+
+---
+
+## Flujo completo paso a paso
+
+### Paso 0 — Idioma de respuesta
+
+Lo primero que hace el skill es preguntarte en qué idioma querés que
+responda. Lo recuerda entre sesiones — solo lo pregunta una vez.
+
+---
+
+### Fase 1 — Preparar tu CV
+
+**1.1 Diagnóstico**
+Claude analiza tu CV actual (`.docx`, `.pdf` o `.md`) como lo vería un
+reclutador en 6 segundos. Te da:
+- Probabilidad estimada de pasar filtro ATS (Alta / Media / Baja + razón)
+- Lista de problemas de formato y contenido
+- Preguntas para completar logros que faltan
+
+> ⛔ No toca nada hasta que vos aprobés el diagnóstico.
+
+**1.2 Reestructuración**
+Aplica solo los cambios que aprobaste. Cada logro debe estar respaldado por
+algo que confirmaste — no se inventan métricas.
+
+**1.3 Foto de perfil** (opcional)
+Si subís una foto, Claude analiza composición y entrega prompts para
+generarla con otra herramienta.
+
+**1.4 Diseño**
+Elegís uno o más de los 3 diseños:
+
+| Diseño | Cuándo usarlo | Riesgo ATS |
+|--------|--------------|------------|
+| **A — ATS-First** | Portales (LinkedIn, Indeed, Computrabajo) | Mínimo |
+| **B — Balanced** | Envío directo a reclutadores | Bajo |
+| **C — Portfolio** | Hiring managers, ferias, impresión | Alto — ⚠️ nunca para portales |
+
+**1.5 Generación y aprobación de PDFs**
+
+El skill genera **siempre dos versiones**:
+- CV en tu idioma nativo
+- CV en inglés
+
+Ambas se guardan primero en `cv/output/` (borradores). Claude te muestra
+la ruta exacta de cada una y pide tu aprobación individual.
+
+> ⚠️ **Hasta que no aprobés los dos PDFs, las Fases 2 y 3 están
+> bloqueadas.** Los PDFs aprobados se copian a `cv/aprobados/` — esos
+> son los únicos que se envían en postulaciones.
+
+Los CVs generados **no contienen** menciones a Claude, ChatGPT ni ninguna
+advertencia de generación por IA, para no ser rechazados por filtros
+automáticos.
+
+---
+
+### Fase 2 — Buscar vacantes
+
+**Prerrequisito:** Chrome MCP verificado + PDFs aprobados en `cv/aprobados/`.
+
+**2.0 ¿Qué puesto buscamos hoy?**
+Antes de buscar, Claude lee tu CV, extrae tus aptitudes y tecnologías, y
+genera una lista de títulos de cargo sugeridos con checkboxes. Vos elegís
+uno o varios, y/o escribís el tuyo. Sin confirmación, no hay búsqueda.
+
+**2.1 Configuración**
+Define portales, filtros de modalidad/ubicación, y salario objetivo
+en **dos monedas**:
+- Moneda de tu país (p. ej. 12.500.000 COP/mes)
+- USD (p. ej. 4.000 USD/mes)
+
+**2.2 Búsqueda**
+Por cada vacante, Claude calcula el match real ("Cumplís X/Y requisitos
+duros") y da un veredicto honesto: postularte o no. Máximo 20 vacantes
+nuevas por sesión.
+
+> ⛔ El usuario marca qué postular y qué descartar antes de continuar.
+
+**Fuentes de búsqueda**: portales web + APIs públicas de Greenhouse, Ashby,
+Lever y Recruitee (ofertas vigentes, no enlaces vencidos).
+
+---
+
+### Fase 3 — Postularse
+
+**Prerrequisito:** vacantes aprobadas en Fase 2.
+
+**Modo supervisado** (por defecto): Claude llena → muestra resumen → vos aprobás → envía.  
+**Modo autónomo** (si lo confirmás): llena y envía sin pausa. Máximo 10 por sesión.
+
+Por cada postulación:
+1. Navega a la vacante con Chrome MCP.
+2. Llena los campos con tu perfil (`perfil.md`).
+3. Si pide **cover letter**: lo genera y lo sube como PDF — nunca lo deja vacío.
+4. Sube el PDF del CV desde `cv/aprobados/` en el idioma que corresponda.
+5. Aplica las **respuestas fijas** automáticamente:
+   - WhatsApp / email: **siempre Sí** (para que te puedan contactar)
+   - Disponibilidad: el valor que guardaste en `perfil.md`
+   - Salario: moneda local o USD según el formulario
+6. Confirma con captura que el envío fue exitoso.
+7. Registra la postulación en `postulaciones/registro.xlsx` inmediatamente.
+
+---
+
+## Tu workspace
+
+Todo tu estado vive en `job-hunter-workspace/`, **fuera** de este repo.
+Tus datos personales nunca se mezclan con el código del skill.
+
+```
+job-hunter-workspace/
+├── cv/
+│   ├── cv-[idioma].md          ← fuente de verdad (tu idioma)
+│   ├── cv-en.md                ← fuente de verdad (inglés)
+│   ├── output/                 ← PDFs en proceso / borradores
+│   ├── aprobados/              ← ★ solo estos se envían
+│   │   ├── cv-[idioma]-aprobado.pdf
+│   │   └── cv-en-aprobado.pdf
+│   └── perfil.md               ← tu perfil + respuestas fijas
+├── busqueda/
+│   ├── config.md
+│   ├── vacantes-nuevas.md
+│   └── vacantes-descartadas.md
+├── postulaciones/
+│   ├── registro.xlsx           ← log de cada postulación
+│   └── cover-letters/
+└── logs/
+    └── sesion-YYYY-MM-DD.md
+```
+
+### perfil.md — el archivo más importante
+
+Se crea desde `templates/perfil.md`. Contiene todo lo que no tenés que
+repetir en cada sesión:
+
+```markdown
+## Idioma de respuesta
+- Idioma preferido: Español
+
+## Preferencias de búsqueda
+- Salario en moneda local: 12.500.000 COP/mes
+- Salario en USD: 4.000 USD/mes
+
+## Respuestas fijas
+- WhatsApp / SMS: Yes
+- Email: Yes
+- Disponibilidad: 1 semana
+- Visa sponsorship: No
+```
+
+El skill las lee al inicio y no vuelve a preguntar. Si falta algo, pregunta
+una vez y lo guarda.
+
+---
+
+## Lo que el skill NO hace
+
+- No instala MCPs ni crea cuentas en portales por vos.
+- No resuelve CAPTCHAs (hCaptcha en Lever, Cloudflare en Workable).
+- No inventa logros ni métricas que no confirmaste.
+- No genera imágenes (solo prompts para que las generes con otra herramienta).
+- No envía nada sin que lo veás primero (en modo supervisado).
+- No avanza de Fase si faltan aprobaciones.
+
+---
+
+## Estructura del repositorio
 
 ```
 job-hunter/
-├── SKILL.md                        # Lógica del skill: las 3 fases, gates, stop conditions
+├── SKILL.md                    ← lógica completa: fases, gates, stop conditions
 ├── references/
-│   ├── ats-2026.md                 # Reglas de parseo ATS vigentes
-│   ├── prerequisitos-chrome.md     # Setup y troubleshooting del Chrome MCP
-│   ├── portales-soportados.md      # Notas de compatibilidad por portal
-│   ├── ats-formularios.md          # Técnicas de llenado por ATS y búsqueda por APIs
-│   ├── estructura-cv.md            # Estructura y reglas de contenido del CV
-│   └── cover-letter-guide.md       # Cómo escribir cover letters efectivas
+│   ├── ats-2026.md             ← reglas de parseo ATS actualizadas
+│   ├── prerequisitos-chrome.md ← setup y troubleshooting Chrome MCP
+│   ├── portales-soportados.md  ← notas por portal (LinkedIn, Ashby, Lever…)
+│   ├── ats-formularios.md      ← técnicas de llenado + APIs públicas de ATS
+│   ├── estructura-cv.md        ← estructura y reglas de contenido del CV
+│   └── cover-letter-guide.md   ← cómo escribir cover letters que funcionan
 ├── templates/
-│   ├── perfil.md                   # Plantilla de perfil + respuestas fijas
-│   ├── design-a.html / design-b.html / design-c.html
+│   ├── perfil.md               ← plantilla de perfil + respuestas fijas
+│   ├── design-a.html           ← ATS-First
+│   ├── design-b.html           ← Balanced
+│   ├── design-c.html           ← Portfolio-Ready
 │   └── cover-letter.html
 ├── scripts/
-│   ├── generar-pdf.py              # Markdown → PDF con el template elegido
-│   ├── verificar-chrome.sh         # Checklist de conexión al Chrome MCP
-│   ├── escanear-ats.py             # Escanea listados públicos de ATS por keywords
-│   └── test-parseo.py              # Test automatizado de parseo ATS
+│   ├── generar-pdf.py          ← markdown → PDF con el template elegido
+│   ├── verificar-chrome.sh     ← verifica conexión al Chrome MCP
+│   ├── escanear-ats.py         ← escanea APIs públicas de ATS
+│   └── test-parseo.py          ← test de parseo ATS sobre el PDF generado
 └── evals/
-    └── evals.json                  # Casos de prueba para validar el comportamiento del skill
+    └── evals.json              ← casos de prueba del skill
 ```
 
-Todo el estado de tu búsqueda (tu CV en markdown, tus vacantes, tu
-registro de postulaciones) vive en un `job-hunter-workspace/` **fuera**
-de este repo — tus datos personales nunca se mezclan con el código del
-skill.
+---
+
+## Preguntas frecuentes
+
+**¿Puedo usar solo la Fase 1 (CV) sin hacer búsqueda ni postulación?**  
+Sí. Las fases son independientes. Podés terminar en 1.5 con tus PDFs
+aprobados y usar esos archivos como querás.
+
+**¿Qué pasa si el portal pide login?**  
+El skill se detiene y vos iniciás sesión manualmente. Nunca crea cuentas
+en tu nombre.
+
+**¿Funciona con cualquier CV?**  
+Sí: `.docx`, `.pdf` o `.md`. Si el archivo tiene protección de copia o
+parseo complicado, Claude te avisa.
+
+**¿Los PDFs aprobados se reemplazan automáticamente si corrijo el CV?**  
+No. Si editás el CV después de aprobar, tenés que pasar de nuevo por el
+gate de aprobación. Así evitás enviar una versión que no revisaste.
+
+**¿El skill guarda mis datos personales en el repositorio?**  
+No. Todo tu workspace vive fuera del repo. Este repositorio no contiene
+ningún dato personal.
+
+---
 
 ## Contribuir
 
 Issues y PRs son bienvenidos, especialmente para:
-- Nuevas notas de compatibilidad en `portales-soportados.md` cuando
-  encuentres el comportamiento de un portal nuevo.
+- Nuevas notas de compatibilidad en `portales-soportados.md`.
 - Actualizaciones a `ats-2026.md` cuando cambien las reglas de parseo.
 - Nuevos templates de diseño.
+- Compatibilidad con nuevos ATS o portales.
+
+---
 
 ## Licencia
 

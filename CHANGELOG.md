@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0
+- **Paso 0 — Idioma de respuesta**: al iniciar el skill pregunta en qué idioma
+  responder. Lo guarda en `perfil.md` y en memoria de Claude Code (`mem_save`);
+  no lo vuelve a preguntar en sesiones siguientes.
+- **Fase 1 — PDFs bilingües obligatorios**: siempre se generan dos versiones
+  (idioma del usuario + inglés). Ambas requieren aprobación explícita e
+  individual antes de continuar.
+- **Fase 1 — Carpeta `cv/aprobados/`**: los PDFs aprobados se copian a esa
+  carpeta exclusiva. Las Fases 2 y 3 solo usan archivos de `cv/aprobados/`;
+  si falta cualquiera de las dos versiones, se muestra una advertencia y se
+  bloquea el avance.
+- **README reescrito**: estructura más clara con flujo paso a paso, diagrama,
+  tabla de diseños, FAQ, y descripción del workspace.
+
 ## 1.2.0
 - **Fase 1 — Gate de aprobación de PDF**: después de generar los PDFs del CV,
   el skill muestra la ruta completa de cada archivo y espera aprobación explícita

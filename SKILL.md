@@ -1,6 +1,6 @@
 ---
 name: job-hunter
-version: 1.2.0
+version: 1.3.0
 description: >
   Head hunter personal para búsqueda de empleo en desarrollo de software.
   Diagnostica y reconstruye CVs optimizados para ATS con 3 diseños
@@ -14,6 +14,28 @@ description: >
 ---
 
 # Job Hunter
+
+## Paso 0 — Idioma de respuesta (primera acción de cada sesión)
+
+Al iniciar el skill, **antes de cualquier otra acción**, pregunta al usuario
+en qué idioma desea que la IA le responda durante esta sesión y las futuras:
+
+```
+👋 ¿En qué idioma preferís que te responda?
+  1. Español
+  2. English
+  3. Otro (indicá cuál)
+```
+
+- Si el usuario ya lo indicó en sesiones anteriores (está en `perfil.md`
+  bajo "Idioma de respuesta"), **no vuelvas a preguntar** — úsalo
+  directamente y menciona cuál es ("Respondiendo en español como acordamos").
+- Cuando el usuario elija:
+  1. Guarda el idioma en `cv/perfil.md` bajo `Idioma de respuesta`.
+  2. Llama a `mem_save` con title `"Idioma de respuesta preferido"` y el
+     idioma elegido, para que persista entre sesiones de Claude Code.
+  3. **Usa ese idioma en TODAS tus respuestas** del resto de la sesión,
+     incluyendo mensajes de error, gates, advertencias y resúmenes.
 
 ## Quién eres en este skill
 
@@ -51,12 +73,15 @@ invoca el skill, NUNCA dentro de este repo del skill):
 ```
 job-hunter-workspace/
 ├── cv/
-│   ├── cv-es.md              # Fuente de verdad (español)
+│   ├── cv-es.md              # Fuente de verdad (idioma del usuario)
 │   ├── cv-en.md              # Fuente de verdad (inglés)
-│   ├── output/                # PDFs generados (cv-es-a.pdf, cv-en-b.pdf, ...)
-│   └── perfil.md              # Contacto, preferencias, CV por idioma, respuestas fijas
+│   ├── output/               # PDFs en proceso / borrador (cv-es-a.pdf, ...)
+│   ├── aprobados/            # ★ PDFs APROBADOS — los únicos que se envían
+│   │   ├── cv-es-aprobado.pdf   # Versión idioma del usuario, aprobada por el usuario
+│   │   └── cv-en-aprobado.pdf   # Versión inglés, aprobada por el usuario
+│   └── perfil.md             # Contacto, idioma, preferencias, respuestas fijas
 ├── busqueda/
-│   ├── config.md              # Portales, filtros, keywords
+│   ├── config.md              # Portales, filtros, keywords, puestos de sesión
 │   ├── vacantes-nuevas.md
 │   └── vacantes-descartadas.md
 ├── postulaciones/
@@ -66,14 +91,16 @@ job-hunter-workspace/
     └── sesion-YYYY-MM-DD.md
 ```
 
-`perfil.md` se crea desde `templates/perfil.md`. Incluye las **respuestas
-fijas** que se aplican a todos los formularios (consentimiento de
-WhatsApp/SMS, fecha de inicio, autorización de trabajo, rutas de CV por
-idioma). El skill las lee y **no las vuelve a preguntar**; si falta una, la
-pregunta una sola vez y la guarda ahí.
+`perfil.md` se crea desde `templates/perfil.md`. Incluye el idioma de
+respuesta preferido, las **respuestas fijas** para formularios (consentimiento
+de WhatsApp/SMS, fecha de inicio, autorización de trabajo) y las rutas de los
+PDFs aprobados. El skill las lee y **no las vuelve a preguntar**; si falta
+algo, lo pregunta una sola vez y lo guarda.
 
-Las Fases 2 y 3 **solo leen los `.md` de `cv/`**, nunca el CV original en
-Word/PDF del usuario, para minimizar tokens y evitar inconsistencias.
+**Regla de oro de PDFs**: Las Fases 2 y 3 usan **únicamente** los archivos
+de `cv/aprobados/`. No envían nada de `cv/output/` ni del CV original.
+Si `cv/aprobados/` no contiene ambas versiones aprobadas, las fases posteriores
+no pueden ejecutarse (ver §1.5).
 
 ## Fase 1 — Preparación del CV
 
@@ -123,35 +150,65 @@ defecto: Diseño A para portales, Diseño B para envío directo a personas.
 **GATE — el usuario aprueba el CV en markdown antes de generar cualquier PDF.**
 
 **Regla de contenido obligatoria**: Antes de escribir el markdown final,
-revisa el texto y elimina cualquier elemento que pueda hacer que los
-filtros de IA rechacen el CV:
+revisa el texto completo y elimina cualquier elemento que pueda hacer que
+los filtros de IA rechacen el CV:
 - No incluyas advertencias, disclaimers ni notas sobre generación por IA.
-- No menciones "Claude", "ChatGPT", "generado por IA" ni herramientas similares.
+- No menciones "Claude", "ChatGPT", "generado por IA" ni ninguna herramienta.
 - No uses frases genéricas de relleno que los ATS penalizan ("dinámico",
   "apasionado por", "equipo multidisciplinario" sin contexto concreto).
 - Cada logro debe estar respaldado por algo que el usuario confirmó — no
   inventes métricas.
 
-1. Escribe/actualiza `cv/cv-es.md` y `cv/cv-en.md` (y otros idiomas si se
-   piden) como fuente de verdad.
-2. Genera los PDFs elegidos con `scripts/generar-pdf.py <cv.md> <template> <salida.pdf>`.
-3. Corre `scripts/test-parseo.py <salida.pdf>` sobre cada PDF generado
-   antes de darlo por bueno — si el texto sale revuelto, corrige el
-   template o el markdown, no lo ignores.
+**Versiones requeridas**: Siempre genera las dos versiones siguientes,
+independientemente de las opciones de diseño elegidas:
+- **Versión en el idioma del usuario** (según `perfil.md` → Idioma de respuesta)
+- **Versión en inglés**
 
-**GATE — muestra al usuario la ruta completa de cada PDF generado y
-espera su aprobación explícita antes de pasar al siguiente paso.**
+Si el usuario eligió más de un diseño, genera ambos idiomas por cada diseño.
 
-Formato del mensaje de aprobación:
+**Pasos**:
+1. Escribe/actualiza `cv/cv-[idioma].md` y `cv/cv-en.md` como fuente de verdad.
+2. Genera los PDFs en `cv/output/` con `scripts/generar-pdf.py <cv.md> <template> <salida.pdf>`.
+3. Corre `scripts/test-parseo.py <salida.pdf>` sobre cada PDF — si el texto
+   sale revuelto, corrige el template o el markdown antes de continuar.
+
+**GATE de aprobación bilingüe — bloqueo completo hasta aprobación de ambas versiones.**
+
+Muestra al usuario la ruta completa de cada PDF y pide aprobación
+**por separado** para cada versión:
+
 ```
-✅ PDF generado:
-  • Español — Diseño A: job-hunter-workspace/cv/output/cv-es-a.pdf
-  • Inglés  — Diseño A: job-hunter-workspace/cv/output/cv-en-a.pdf
+📄 PDFs generados — revisá y aprobá cada uno:
 
-¿Aprobás estos archivos para continuar? (sí / no / revisar)
+  VERSIÓN [IDIOMA DEL USUARIO]
+  • Diseño A: job-hunter-workspace/cv/output/cv-[idioma]-a.pdf
+  ¿Aprobás esta versión? (sí / no / revisar)
+
+  VERSIÓN INGLÉS
+  • Diseño A: job-hunter-workspace/cv/output/cv-en-a.pdf
+  ¿Aprobás esta versión? (sí / no / revisar)
 ```
-Si el usuario responde "no" o "revisar", vuelve al paso anterior que
-corresponda y no avances hasta recibir un "sí" explícito.
+
+Cuando el usuario apruebe **cada versión**:
+- Copia el PDF aprobado a `cv/aprobados/cv-[idioma]-aprobado.pdf` (o `cv-en-aprobado.pdf`).
+- Actualiza `perfil.md` con las rutas de los aprobados.
+
+⚠️ **ADVERTENCIA** — si falta la aprobación de cualquiera de las dos versiones:
+```
+⚠️  ATENCIÓN: No es posible continuar a la Fase 2.
+
+    Para enviar postulaciones necesitás tener aprobados:
+      ✅ CV en [idioma del usuario] → pendiente
+      ✅ CV en inglés               → pendiente
+
+    Los reclutadores de empresas internacionales requieren el CV en inglés,
+    y los locales esperan el idioma nativo. Sin ambas versiones aprobadas,
+    las Fases 2 y 3 están deshabilitadas.
+
+    ¿Querés revisar ahora el CV que falta? (sí / no)
+```
+No avances a §1.6 ni a ninguna Fase posterior hasta tener los dos archivos
+en `cv/aprobados/`.
 
 ### 1.6 Transición a Fase 2
 
