@@ -1,10 +1,12 @@
 ---
 name: job-hunter
-version: 1.4.1
+version: 1.5.0
 description: >
   Head hunter personal para búsqueda de empleo en desarrollo de software.
-  Diagnostica y reconstruye CVs optimizados para ATS con 3 diseños
-  (ATS-first, balanced, portfolio), busca vacantes con análisis de match
+  Recibe el CV en PDF, lo convierte a Markdown con MarkItDown, lo
+  diagnostica y lo reconstruye en Word (.docx) optimizado para ATS con 3
+  diseños (ATS-first, balanced, portfolio) para que el usuario lo exporte
+  a PDF; busca vacantes con análisis de match
   estilo reclutador, y asiste en postulación vía Chrome MCP.
   Usar cuando el usuario mencione buscar trabajo, preparar o mejorar CV,
   postularse a vacantes, crear cover letters, analizar compatibilidad
@@ -58,20 +60,27 @@ El skill verifica y resuelve los requisitos por sí mismo al arrancar.
 **No le pidas al usuario que instale nada a mano** salvo los dos casos
 marcados como "intervención manual" abajo.
 
-### Python 3 + dependencias de PDF
+### Python 3 + dependencias (MarkItDown y Word)
 
 Ejecuta este bloque inmediatamente al iniciar la Fase 1:
 
 ```bash
-python3 -c "import markdown, weasyprint, pypdf" 2>/dev/null \
-  || pip install --quiet markdown weasyprint pypdf
+python3 -c "import markitdown, docx" 2>/dev/null \
+  || pip install --quiet 'markitdown[pdf,docx]' python-docx
 ```
+
+- `markitdown` ([microsoft/markitdown](https://github.com/microsoft/markitdown))
+  convierte el CV en PDF del usuario a Markdown.
+- `python-docx` genera el CV mejorado en Word (.docx).
+- Las cover letters de la Fase 3 siguen saliendo en PDF; para eso, al
+  iniciar la Fase 3 instala también `markdown` y `weasyprint`:
+  `python3 -c "import markdown, weasyprint" 2>/dev/null || pip install --quiet markdown weasyprint`
 
 - Si el comando termina sin error → requisito OK, continúa.
 - Si `pip install` falla por permisos → intenta `pip install --user`.
 - Si Python 3 no está disponible en el sistema:
   ```
-  ⚠️  Necesitás Python 3 para generar los PDFs del CV.
+  ⚠️  Necesitás Python 3 para convertir y generar el CV.
       • macOS:  brew install python3
       • Linux:  sudo apt install python3 python3-pip
       • Windows: descargá el instalador desde python.org
@@ -115,12 +124,15 @@ invoca el skill, NUNCA dentro de este repo del skill):
 ```
 job-hunter-workspace/
 ├── cv/
+│   ├── original/
+│   │   ├── cv-original.pdf   # PDF que entregó el usuario (NUNCA se lee directo)
+│   │   └── cv-original.md    # Conversión con MarkItDown — lo único que se lee
 │   ├── cv-es.md              # Fuente de verdad (idioma del usuario)
 │   ├── cv-en.md              # Fuente de verdad (inglés)
-│   ├── output/               # PDFs en proceso / borrador (cv-es-a.pdf, ...)
-│   ├── aprobados/            # ★ PDFs APROBADOS — los únicos que se envían
-│   │   ├── cv-es-aprobado.pdf   # Versión idioma del usuario, aprobada por el usuario
-│   │   └── cv-en-aprobado.pdf   # Versión inglés, aprobada por el usuario
+│   ├── output/               # Word (.docx) generados por el skill (cv-es-a.docx, ...)
+│   ├── aprobados/            # ★ PDFs APROBADOS — exportados por el usuario desde Word
+│   │   ├── cv-es-aprobado.pdf   # Versión idioma del usuario
+│   │   └── cv-en-aprobado.pdf   # Versión inglés
 │   └── perfil.md             # Contacto, idioma, preferencias, respuestas fijas
 ├── busqueda/
 │   ├── config.md              # Portales, filtros, keywords, puestos de sesión
@@ -140,16 +152,40 @@ PDFs aprobados. El skill las lee y **no las vuelve a preguntar**; si falta
 algo, lo pregunta una sola vez y lo guarda.
 
 **Regla de oro de PDFs**: Las Fases 2 y 3 usan **únicamente** los archivos
-de `cv/aprobados/`. No envían nada de `cv/output/` ni del CV original.
+de `cv/aprobados/`, que son PDFs que **el propio usuario** exportó desde los
+Word generados. No envían nada de `cv/output/` ni del CV original.
 Si `cv/aprobados/` no contiene ambas versiones aprobadas, las fases posteriores
 no pueden ejecutarse (ver §1.5).
 
 ## Fase 1 — Preparación del CV
 
+### 1.0 Recepción del CV en PDF (conversión con MarkItDown)
+
+1. **Pide al usuario su hoja de vida actual en PDF** (ruta local del archivo):
+   ```
+   📎 Pasame la ruta de tu hoja de vida actual en PDF
+      (por ejemplo: ~/Documents/mi-cv.pdf).
+   ```
+   Si el usuario entrega otro formato (`.docx`, `.md`, imagen), pídele que
+   la exporte a PDF y la comparta de nuevo.
+2. Copia el archivo a `cv/original/cv-original.pdf`.
+3. **NO leas el PDF.** No lo abras con la herramienta `Read`, ni con
+   `pypdf`, `pdftotext` ni ningún otro lector. Conviértelo a Markdown con
+   [MarkItDown](https://github.com/microsoft/markitdown):
+   ```bash
+   python3 scripts/convertir-cv.py cv/original/cv-original.pdf cv/original/cv-original.md
+   ```
+   (equivale a `markitdown cv/original/cv-original.pdf -o cv/original/cv-original.md`,
+   con validación de PDF escaneado).
+4. Trabaja **solo** sobre `cv/original/cv-original.md` desde aquí en adelante.
+5. Si el script falla por poco texto extraído → el PDF es una imagen
+   escaneada. Díselo al usuario: un ATS tampoco podrá leerlo. Pídele un PDF
+   exportado desde Word o Google Docs.
+
 ### 1.1 Diagnóstico (modo head hunter)
 
-Lee el CV actual del usuario (el archivo que exista: `.docx`, `.pdf` o
-`.md`) y genera un reporte con este tono y estas secciones exactas:
+Lee `cv/original/cv-original.md` (la conversión de MarkItDown, nunca el
+PDF) y genera un reporte con este tono y estas secciones exactas:
 
 - **Veredicto rápido**: qué ve un reclutador en los primeros 6 segundos,
   qué falta, qué sobra. Probabilidad estimada de pasar filtro ATS
@@ -189,7 +225,12 @@ defecto: Diseño A para portales, Diseño B para envío directo a personas.
 
 ### 1.5 Generación de entregables
 
-**GATE — el usuario aprueba el CV en markdown antes de generar cualquier PDF.**
+**GATE — el usuario aprueba el CV en markdown antes de generar cualquier Word.**
+
+**Formato de entrega: Word (.docx), nunca PDF.** El skill genera el CV
+mejorado en Word y **el usuario es quien lo convierte a PDF**. No generes
+el PDF del CV por tu cuenta (ni con weasyprint, ni con LibreOffice, ni con
+ningún otro conversor).
 
 **Regla de contenido obligatoria**: Antes de escribir el markdown final,
 revisa el texto completo y elimina cualquier elemento que pueda hacer que
@@ -210,30 +251,45 @@ Si el usuario eligió más de un diseño, genera ambos idiomas por cada diseño.
 
 **Pasos**:
 1. Escribe/actualiza `cv/cv-[idioma].md` y `cv/cv-en.md` como fuente de verdad.
-2. Genera los PDFs en `cv/output/` con `scripts/generar-pdf.py <cv.md> <template> <salida.pdf>`.
-3. Corre `scripts/test-parseo.py <salida.pdf>` sobre cada PDF — si el texto
-   sale revuelto, corrige el template o el markdown antes de continuar.
+2. Genera los Word en `cv/output/` con
+   `scripts/generar-docx.py <cv.md> <salida.docx> --design <a|b|c> --lang <idioma>`.
+3. Corre `scripts/test-parseo.py <salida.docx>` sobre cada Word — si el texto
+   sale revuelto, corrige el markdown antes de continuar (en el diseño C el
+   aviso de orden es esperado: por eso nunca va a portales).
 
 **GATE de aprobación bilingüe — bloqueo completo hasta aprobación de ambas versiones.**
 
-Muestra al usuario la ruta completa de cada PDF y pide aprobación
-**por separado** para cada versión:
+Muestra al usuario la ruta **absoluta** de cada Word, **dile explícitamente
+que él debe convertirlo a PDF** y pide aprobación **por separado** para
+cada versión:
 
 ```
-📄 PDFs generados — revisá y aprobá cada uno:
+📝 Tu hoja de vida mejorada está lista en Word:
 
   VERSIÓN [IDIOMA DEL USUARIO]
-  • Diseño A: job-hunter-workspace/cv/output/cv-[idioma]-a.pdf
-  ¿Aprobás esta versión? (sí / no / revisar)
+  • Diseño A: /ruta/absoluta/job-hunter-workspace/cv/output/cv-[idioma]-a.docx
 
   VERSIÓN INGLÉS
-  • Diseño A: job-hunter-workspace/cv/output/cv-en-a.pdf
-  ¿Aprobás esta versión? (sí / no / revisar)
+  • Diseño A: /ruta/absoluta/job-hunter-workspace/cv/output/cv-en-a.docx
+
+👉 Abrí cada archivo en Word (o Google Docs / LibreOffice), revisalo,
+   ajustá lo que quieras y conviértelo vos a PDF:
+     Word: Archivo → Guardar como → PDF   (o Archivo → Exportar → PDF)
+   Guardalo con estos nombres:
+     • job-hunter-workspace/cv/aprobados/cv-[idioma]-aprobado.pdf
+     • job-hunter-workspace/cv/aprobados/cv-en-aprobado.pdf
+
+Avisame cuando los PDFs estén guardados. ¿Aprobás cada versión? (sí / no / revisar)
 ```
 
-Cuando el usuario apruebe **cada versión**:
-- Copia el PDF aprobado a `cv/aprobados/cv-[idioma]-aprobado.pdf` (o `cv-en-aprobado.pdf`).
+Cuando el usuario confirme **cada versión**:
+- Verifica que el PDF existe en `cv/aprobados/` (si lo guardó en otra ruta,
+  cópialo con el nombre correcto).
+- Corre `scripts/test-parseo.py cv/aprobados/<archivo>.pdf` (usa MarkItDown;
+  no abras el PDF con `Read`). Si hay avisos, muéstraselos al usuario.
 - Actualiza `perfil.md` con las rutas de los aprobados.
+- Si el usuario pide cambios después de exportar: actualiza el `.md`,
+  regenera el `.docx` y vuelve a pedirle que lo exporte a PDF.
 
 ⚠️ **ADVERTENCIA** — si falta la aprobación de cualquiera de las dos versiones:
 ```
@@ -260,14 +316,15 @@ pasar a Fase 2.**
 
 ## Los 3 diseños de CV
 
-| Diseño | Propósito | Riesgo ATS | Template |
+| Diseño | Propósito | Riesgo ATS | Opción de `generar-docx.py` |
 |---|---|---|---|
-| A — ATS-First | Portales de empleo (LinkedIn, Indeed, Computrabajo) | Mínimo | `templates/design-a.html` |
-| B — Balanced | Envío directo a reclutadores, empresas medianas | Bajo (~95%+) | `templates/design-b.html` |
-| C — Portfolio-Ready | Envío directo a hiring managers, ferias, impresión | Alto en sidebars — **nunca para portales** | `templates/design-c.html` |
+| A — ATS-First | Portales de empleo (LinkedIn, Indeed, Computrabajo) | Mínimo | `--design a` |
+| B — Balanced | Envío directo a reclutadores, empresas medianas | Bajo (~95%+) | `--design b` |
+| C — Portfolio-Ready | Envío directo a hiring managers, ferias, impresión | Alto en sidebars — **nunca para portales** | `--design c` |
 
-Los 3 se generan del mismo `cv-[lang].md`, cambiando solo el template
-HTML. Nunca mezcles diseño C con una postulación por portal ATS.
+Los 3 se generan en Word del mismo `cv-[lang].md` con
+`scripts/generar-docx.py --design a|b|c`. El diseño C usa una tabla de dos
+columnas (sidebar). Nunca mezcles diseño C con una postulación por portal ATS.
 
 ## Fase 2 — Búsqueda de vacantes
 
@@ -427,8 +484,10 @@ El agente principal:
    3. Llena todos los campos usando perfil.md y el CV en el idioma correcto.
    4. Consentimiento WhatsApp / email → SIEMPRE Yes / Sí (todos los canales).
    5. Si pide cover letter: generalo siguiendo references/cover-letter-guide.md.
-      Guardalo en postulaciones/cover-letters/<empresa>-<cargo>.pdf y súbelo.
-   6. Sube el PDF desde cv/aprobados/ (diseño A o B — nunca C).
+      Genéralo con scripts/generar-pdf.py <cl.md> templates/cover-letter.html
+      postulaciones/cover-letters/<empresa>-<cargo>.pdf y súbelo.
+   6. Sube el PDF desde cv/aprobados/ (exportado por el usuario; diseño A o B — nunca C).
+      Nunca subas un .docx de cv/output/ ni un PDF generado por el skill.
    7. Verifica con captura que radios, desplegables, casillas y archivo
       quedaron correctos.
    8. **Antes de intentar enviar**, escanea el formulario buscando cualquiera
@@ -505,6 +564,11 @@ lista de vacantes con `intervencion_manual` pendiente.
    (campos que no corresponden a lo esperado) → pausa y pide intervención.
 
 ## Referencias
+
+- `scripts/convertir-cv.py` — PDF del usuario → Markdown con MarkItDown (único modo de leer el CV).
+- `scripts/generar-docx.py` — Markdown → Word (.docx) en diseños A/B/C.
+- `scripts/test-parseo.py` — test de parseo ATS sobre .docx o .pdf (vía MarkItDown).
+- `scripts/generar-pdf.py` — solo para cover letters (Fase 3).
 
 - `references/ats-2026.md` — reglas de parseo ATS, actualizable sin tocar este archivo.
 - `references/prerequisitos-chrome.md` — setup y troubleshooting de Chrome MCP.

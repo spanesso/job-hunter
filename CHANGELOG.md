@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.0
+- **Fase 1 — CV de entrada en PDF + MarkItDown**: el skill pide la hoja de
+  vida en PDF y **no la lee directamente**: la convierte a Markdown con
+  [microsoft/markitdown](https://github.com/microsoft/markitdown) mediante
+  el nuevo `scripts/convertir-cv.py` (detecta PDFs escaneados) y trabaja
+  solo sobre `cv/original/cv-original.md`.
+- **Fase 1 — CV mejorado en Word**: el nuevo `scripts/generar-docx.py`
+  genera el CV en `.docx` (diseños A/B/C, títulos con estilos de Word). El
+  skill ya no genera el PDF del CV: le indica al usuario que abra el Word,
+  lo revise y lo exporte él mismo a PDF en `cv/aprobados/`.
+- **test-parseo.py** usa MarkItDown y acepta `.docx` y `.pdf`.
+- Dependencias: `markitdown[pdf,docx]` y `python-docx` (Fase 1);
+  `markdown` + `weasyprint` solo para cover letters (Fase 3).
+- Eliminados `templates/design-{a,b,c}.html` (reemplazados por `--design`).
+
 ## 1.4.2
 - **README — reCAPTCHA**: Fase 3 actualizada con el paso 6 de detección del
   checkbox "I'm not a robot", flujo de advertencia y opción de omitir.

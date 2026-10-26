@@ -52,4 +52,4 @@ CERTIFICACIONES (si aplica)
 - **Fechas en un solo formato** en todo el documento: "Mes AAAA – Mes
   AAAA" o "MM/AAAA – MM/AAAA".
 - **Sin imágenes, tablas ni columnas dobles** en la fuente markdown — eso
-  se controla en el template HTML, no en el contenido.
+  se controla en `scripts/generar-docx.py` (opción `--design`), no en el contenido.

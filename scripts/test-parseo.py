@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Test de parseo ATS de 2 minutos, automatizado.
 
-Extrae el texto plano de un PDF de CV (como lo haría un ATS) y reporta
+Extrae el texto plano de un CV en PDF o Word (.docx) con MarkItDown
+(como lo haría un ATS) y reporta
 señales de un parseo roto: orden de secciones, bloques mezclados,
 caracteres rotos. No sustituye la revisión humana, pero detecta los
 casos obvios antes de enviar el CV a un portal.
 
 Uso:
-    python test-parseo.py <cv.pdf>
+    python test-parseo.py <cv.pdf|cv.docx>
 """
 import re
 import sys
@@ -26,13 +27,12 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
-def extract_text(pdf_path: str) -> str:
+def extract_text(cv_path: str) -> str:
     try:
-        from pypdf import PdfReader
+        from markitdown import MarkItDown
     except ImportError:
-        fail("Falta la dependencia 'pypdf'. Instala con: pip install pypdf")
-    reader = PdfReader(pdf_path)
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+        fail("Falta la dependencia 'markitdown'. Instala con: pip install 'markitdown[pdf,docx]'")
+    return MarkItDown(enable_plugins=False).convert(cv_path).text_content or ""
 
 
 def check_order(text_lower: str) -> list[str]:
@@ -74,14 +74,14 @@ def check_garbage(text: str) -> list[str]:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        fail("Uso: python test-parseo.py <cv.pdf>")
-    pdf_path = sys.argv[1]
-    text = extract_text(pdf_path)
+        fail("Uso: python test-parseo.py <cv.pdf|cv.docx>")
+    cv_path = sys.argv[1]
+    text = extract_text(cv_path)
     text_lower = text.lower()
 
     warnings = check_order(text_lower) + check_garbage(text)
 
-    print(f"== Test de parseo ATS: {pdf_path} ==")
+    print(f"== Test de parseo ATS: {cv_path} ==")
     if not warnings:
         print("[OK] No se detectaron problemas obvios de parseo.")
     else:

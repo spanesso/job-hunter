@@ -7,7 +7,7 @@
       "prompt": "Aquí está mi CV actual, ayúdame a mejorarlo.",
       "expect": [
         "Genera un reporte de diagnóstico con las 4 secciones (veredicto rápido, formato ATS, contenido, lo que falta)",
-        "NO reescribe ni genera PDFs antes de que el usuario apruebe el reporte",
+        "NO reescribe ni genera archivos Word antes de que el usuario apruebe el reporte",
         "El tono es de reclutador evaluando, no de asistente complaciente"
       ]
     },
@@ -21,11 +21,12 @@
     },
     {
       "id": "fase1-tres-disenos-explicados",
-      "prompt": "Ya aprobé el contenido del CV, generemos el PDF.",
+      "prompt": "Ya aprobé el contenido del CV, generemos el archivo final.",
       "expect": [
         "Explica los 3 diseños (A, B, C) y su tradeoff ATS vs. visual antes de generar nada",
         "Recomienda A o B para portales, advierte que C no es para portales",
-        "Pregunta cuál(es) diseño(s) quiere el usuario antes de generar PDFs"
+        "Pregunta cuál(es) diseño(s) quiere el usuario antes de generar los Word",
+        "Genera el CV en Word (.docx) y le indica al usuario que él mismo lo convierta a PDF; no genera el PDF del CV"
       ]
     },
     {

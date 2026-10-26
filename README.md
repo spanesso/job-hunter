@@ -24,7 +24,7 @@ de avanzar:
 │                                                             │
 │  Diagnóstico       Análisis match      Formularios          │
 │  Reescritura       Lista aprobada      Cover letters        │
-│  PDF bilingüe      por el usuario      Registro Excel       │
+│  Word bilingüe     por el usuario      Registro Excel       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,7 +45,7 @@ Eso es todo. Claude Code detecta el skill automáticamente.
 | Requisito | Para qué | Lo instala el skill |
 |-----------|----------|-------------|
 | [Claude Code](https://claude.com/claude-code) | Correr el skill | — (ver paso 1) |
-| Python 3 | Generar los PDFs del CV | El skill corre `pip install` automático |
+| Python 3 | Convertir tu CV (PDF → Markdown con [MarkItDown](https://github.com/microsoft/markitdown)) y generar el CV mejorado en Word | El skill corre `pip install 'markitdown[pdf,docx]' python-docx` automático |
 | Chrome MCP (`claude-in-chrome` o `chrome-devtools`) | Navegar y postularse | El skill detecta cuál tenés |
 
 El skill verifica e instala las dependencias Python automáticamente al
@@ -161,8 +161,14 @@ responda. Lo recuerda entre sesiones — solo lo pregunta una vez.
 
 ### Fase 1 — Preparar tu CV
 
+**1.0 Tu CV en PDF**
+El skill te pide tu hoja de vida actual **en PDF**. No la lee directamente:
+la convierte a Markdown con [MarkItDown](https://github.com/microsoft/markitdown)
+(`scripts/convertir-cv.py`) y trabaja solo sobre ese texto. Si el PDF es una
+imagen escaneada, te avisa — un ATS tampoco podría leerlo.
+
 **1.1 Diagnóstico**
-Claude analiza tu CV actual (`.docx`, `.pdf` o `.md`) como lo vería un
+Claude analiza la conversión a Markdown de tu CV como lo vería un
 reclutador en 6 segundos. Te da:
 - Probabilidad estimada de pasar filtro ATS (Alta / Media / Baja + razón)
 - Lista de problemas de formato y contenido
@@ -187,18 +193,20 @@ Elegís uno o más de los 3 diseños:
 | **B — Balanced** | Envío directo a reclutadores | Bajo |
 | **C — Portfolio** | Hiring managers, ferias, impresión | Alto — ⚠️ nunca para portales |
 
-**1.5 Generación y aprobación de PDFs**
+**1.5 CV en Word → vos lo convertís a PDF**
 
-El skill genera **siempre dos versiones**:
+El skill genera **siempre dos versiones en Word (.docx)**:
 - CV en tu idioma nativo
 - CV en inglés
 
-Ambas se guardan primero en `cv/output/` (borradores). Claude te muestra
-la ruta exacta de cada una y pide tu aprobación individual.
+Ambas se guardan en `cv/output/`. Claude te muestra la ruta exacta de cada
+una y te pide que **vos** las abras en Word, las revises y las exportes a
+PDF (Archivo → Guardar como → PDF) en `cv/aprobados/`. El skill no genera
+el PDF del CV: así tenés control total del archivo final.
 
-> ⚠️ **Hasta que no aprobés los dos PDFs, las Fases 2 y 3 están
-> bloqueadas.** Los PDFs aprobados se copian a `cv/aprobados/` — esos
-> son los únicos que se envían en postulaciones.
+> ⚠️ **Hasta que no exportés y aprobés los dos PDFs, las Fases 2 y 3 están
+> bloqueadas.** Los PDFs de `cv/aprobados/` son los únicos que se envían
+> en postulaciones.
 
 Los CVs generados **no contienen** menciones a Claude, ChatGPT ni ninguna
 advertencia de generación por IA, para no ser rechazados por filtros
@@ -277,10 +285,11 @@ Tus datos personales nunca se mezclan con el código del skill.
 ```
 job-hunter-workspace/
 ├── cv/
+│   ├── original/               ← tu PDF + su conversión a .md (MarkItDown)
 │   ├── cv-[idioma].md          ← fuente de verdad (tu idioma)
 │   ├── cv-en.md                ← fuente de verdad (inglés)
-│   ├── output/                 ← PDFs en proceso / borradores
-│   ├── aprobados/              ← ★ solo estos se envían
+│   ├── output/                 ← CVs en Word (.docx) generados por el skill
+│   ├── aprobados/              ← ★ PDFs exportados por vos — solo estos se envían
 │   │   ├── cv-[idioma]-aprobado.pdf
 │   │   └── cv-en-aprobado.pdf
 │   └── perfil.md               ← tu perfil + respuestas fijas
@@ -348,15 +357,14 @@ job-hunter/
 │   └── cover-letter-guide.md   ← cómo escribir cover letters que funcionan
 ├── templates/
 │   ├── perfil.md               ← plantilla de perfil + respuestas fijas
-│   ├── design-a.html           ← ATS-First
-│   ├── design-b.html           ← Balanced
-│   ├── design-c.html           ← Portfolio-Ready
-│   └── cover-letter.html
+│   └── cover-letter.html       ← template de cover letter (PDF)
 ├── scripts/
-│   ├── generar-pdf.py          ← markdown → PDF con el template elegido
+│   ├── convertir-cv.py         ← tu CV en PDF → Markdown (MarkItDown)
+│   ├── generar-docx.py         ← markdown → Word (.docx), diseños A/B/C
+│   ├── generar-pdf.py          ← markdown → PDF, solo cover letters
 │   ├── verificar-chrome.sh     ← verifica conexión al Chrome MCP
 │   ├── escanear-ats.py         ← escanea APIs públicas de ATS
-│   └── test-parseo.py          ← test de parseo ATS sobre el PDF generado
+│   └── test-parseo.py          ← test de parseo ATS sobre .docx o .pdf
 └── evals/
     └── evals.json              ← casos de prueba del skill
 ```
@@ -366,20 +374,25 @@ job-hunter/
 ## Preguntas frecuentes
 
 **¿Puedo usar solo la Fase 1 (CV) sin hacer búsqueda ni postulación?**  
-Sí. Las fases son independientes. Podés terminar en 1.5 con tus PDFs
-aprobados y usar esos archivos como querás.
+Sí. Las fases son independientes. Podés terminar en 1.5 con tus CVs en
+Word (y los PDFs que exportaste) y usarlos como querás.
 
 **¿Qué pasa si el portal pide login?**  
 El skill se detiene y vos iniciás sesión manualmente. Nunca crea cuentas
 en tu nombre.
 
 **¿Funciona con cualquier CV?**  
-Sí: `.docx`, `.pdf` o `.md`. Si el archivo tiene protección de copia o
-parseo complicado, Claude te avisa.
+El skill pide tu CV en **PDF** y lo convierte a Markdown con MarkItDown.
+Si lo tenés en Word, exportalo primero a PDF. Si el PDF es escaneado
+(imagen) o tiene protección de copia, Claude te avisa.
+
+**¿Por qué el skill me entrega Word y no PDF?**  
+Para que revises y ajustes el CV final con tu propio editor, y que el PDF
+que envíes sea exactamente el que vos exportaste y aprobaste.
 
 **¿Los PDFs aprobados se reemplazan automáticamente si corrijo el CV?**  
-No. Si editás el CV después de aprobar, tenés que pasar de nuevo por el
-gate de aprobación. Así evitás enviar una versión que no revisaste.
+No. Si pedís cambios, el skill regenera el Word y vos volvés a exportarlo
+a PDF y aprobarlo. Así evitás enviar una versión que no revisaste.
 
 **¿Qué pasa con el checkbox "I'm not a robot"?**  
 El Chrome MCP no puede interactuar con el reCAPTCHA v2 porque corre
